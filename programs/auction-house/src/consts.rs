@@ -1,0 +1,1 @@
+pub const BASE_VAULT: &[u8; 10] = b"base_vault";
