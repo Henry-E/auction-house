@@ -1,3 +1,0 @@
-[submodule "deps/agnostic-orderbook"]
-	path = deps/agnostic-orderbook
-	url = git@github.com:Henry-E/agnostic-orderbook.git
