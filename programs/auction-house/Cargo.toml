@@ -17,3 +17,8 @@ default = []
 
 [dependencies]
 anchor-lang = "0.22.1"
+# Right now this will use whatever the latest commit is on the master branch.
+# Later on we can force it to stick to a specific commit if needed
+# https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories
+agnostic-orderbook = {git = "https://github.com/Henry-E/agnostic-orderbook.git", features = ["no-entrypoint", "lib"]}
+
