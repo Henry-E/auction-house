@@ -1,1 +1,3 @@
-pub const BASE_VAULT: &[u8; 10] = b"base_vault";
+pub const BASE_VAULT: &str = "base_vault";
+pub const QUOTE_VAULT: &str = "quote_vault";
+pub const AUCTION: &str = "auction";

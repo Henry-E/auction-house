@@ -2,8 +2,10 @@ use anchor_lang::prelude::*;
 
 use agnostic_orderbook::state::Side;
 
-// use const::*;
+use ctx::*;
+use account::*;
 
+mod account;
 mod consts;
 mod ctx;
 
@@ -24,6 +26,12 @@ pub mod auction_house {
                 msg!("hey it's an ask");
             }
         }
+        Ok(())
+    }
+
+    pub fn init_auction(ctx: Context<InitAuction>, start_time: i64) -> Result<()> {
+        let auction: &mut Auction = &mut *ctx.accounts.auction;
+        auction.start_time = start_time;
         Ok(())
     }
 }
