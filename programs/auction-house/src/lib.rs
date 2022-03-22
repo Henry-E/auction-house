@@ -41,7 +41,17 @@ pub mod auction_house {
         // Ok(())
     }
 
+    pub fn new_order(_ctx: Context<NewOrder>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
     pub fn new_encrypted_order(_ctx: Context<NewEncryptedOrder>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
+    pub fn decrypt_order(_ctx: Context<DecryptOrder>) -> Result<()> {
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }
