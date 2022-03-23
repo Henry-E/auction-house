@@ -66,6 +66,11 @@ pub mod auction_house {
         // Ok(())
     }
 
+    pub fn calculate_clearing_price(_ctx: Context<CalculateClearingPrice>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
 }
 
 #[derive(Accounts)]

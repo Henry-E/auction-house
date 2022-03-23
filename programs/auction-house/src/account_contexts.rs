@@ -175,20 +175,31 @@ pub struct NewOrder<'info> {
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts 
-    /// CHECK: This should be owned by the program
     #[account(
         seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump,
+        bump = auction.bumps.orderbook_manager,
     )]
     pub orderbook_manager: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
-    #[account(address = Pubkey::new_from_array(orderbook_manager.event_queue), owner = crate::ID)]
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        owner = crate::ID,
+        mut
+    )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
-    #[account(address = Pubkey::new_from_array(orderbook_manager.bids), owner = crate::ID)]
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.bids),
+        owner = crate::ID,
+        mut
+    )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
-    #[account(address = Pubkey::new_from_array(orderbook_manager.asks), owner = crate::ID)]
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.asks),
+        owner = crate::ID,
+        mut
+    )]
     pub ask_queue: UncheckedAccount<'info>,
     // Token accounts
     #[account(
@@ -229,20 +240,70 @@ pub struct DecryptOrder<'info> {
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts 
-    /// CHECK: This should be owned by the program
     #[account(
         seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auctioneer.key().as_ref()],
-        bump,
+        bump = auction.bumps.orderbook_manager,
     )]
-    pub orderbook_manager: UncheckedAccount<'info>,
+    pub orderbook_manager: Account<'info, MarketState>,    
     /// CHECK: This should be owned by the program
-    #[account(owner = crate::ID)]
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        owner = crate::ID,
+        mut
+    )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
-    #[account(owner = crate::ID)]
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.bids),
+        owner = crate::ID,
+        mut
+    )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
-    #[account(owner = crate::ID)]
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.asks),
+        owner = crate::ID,
+        mut
+    )]
+    pub ask_queue: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CalculateClearingPrice<'info> {
+    // Technically don't need the auctioneer to sign for this one
+    // pub auctioneer: Signer<'info>,
+    // Program Accounts
+    #[account(
+        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bump,
+        mut
+    )]
+    pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.orderbook_manager,
+    )]
+    pub orderbook_manager: Account<'info, MarketState>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        owner = crate::ID,
+        mut
+    )]
+    pub event_queue: UncheckedAccount<'info>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.bids),
+        owner = crate::ID,
+        mut
+    )]
+    pub bid_queue: UncheckedAccount<'info>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.asks),
+        owner = crate::ID,
+        mut
+    )]
     pub ask_queue: UncheckedAccount<'info>,
 }
 
