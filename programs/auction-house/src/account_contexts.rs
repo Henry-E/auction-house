@@ -180,15 +180,15 @@ pub struct NewOrder<'info> {
         seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
         bump,
     )]
-    pub orderbook_manager: UncheckedAccount<'info>,
+    pub orderbook_manager: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
-    #[account(owner = crate::ID)]
+    #[account(address = Pubkey::new_from_array(orderbook_manager.event_queue), owner = crate::ID)]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
-    #[account(owner = crate::ID)]
+    #[account(address = Pubkey::new_from_array(orderbook_manager.bids), owner = crate::ID)]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
-    #[account(owner = crate::ID)]
+    #[account(address = Pubkey::new_from_array(orderbook_manager.asks), owner = crate::ID)]
     pub ask_queue: UncheckedAccount<'info>,
     // Token accounts
     #[account(
@@ -245,3 +245,4 @@ pub struct DecryptOrder<'info> {
     #[account(owner = crate::ID)]
     pub ask_queue: UncheckedAccount<'info>,
 }
+

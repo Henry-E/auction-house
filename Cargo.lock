@@ -237,6 +237,7 @@ dependencies = [
  "agnostic-orderbook",
  "anchor-lang",
  "anchor-spl",
+ "bytemuck",
 ]
 
 [[package]]

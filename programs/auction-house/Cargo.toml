@@ -22,4 +22,6 @@ anchor-spl = "0.22.1"
 # Later on we can force it to stick to a specific commit if needed
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories
 agnostic-orderbook = {git = "https://github.com/Henry-E/agnostic-orderbook.git", features = ["no-entrypoint", "lib"]}
+bytemuck = {version = "1.7.2", features= ["derive"]}
+
 

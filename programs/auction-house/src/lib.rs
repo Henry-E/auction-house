@@ -46,7 +46,17 @@ pub mod auction_house {
         // Ok(())
     }
 
+    pub fn cancel_order(_ctx: Context<NewOrder>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
     pub fn new_encrypted_order(_ctx: Context<NewEncryptedOrder>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+    
+    pub fn cancel_encrypted_order(_ctx: Context<NewEncryptedOrder>) -> Result<()> {
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }
@@ -55,6 +65,7 @@ pub mod auction_house {
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }
+
 }
 
 #[derive(Accounts)]
