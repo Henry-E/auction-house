@@ -145,13 +145,13 @@ pub struct NewEncryptedOrder<'info> {
     pub user_token: Account<'info, TokenAccount>,
     #[account(
         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump, // TODO add this bump to auction account
+        bump = auction.bumps.quote_vault,
         mut
     )]
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
         seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump, // TODO add this bump auction account
+        bump = auction.bumps.base_vault,
         mut
     )]
     pub base_vault: Account<'info, TokenAccount>,
@@ -286,6 +286,36 @@ pub struct CalculateClearingPrice<'info> {
     pub orderbook_manager: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
+        address = Pubkey::new_from_array(orderbook_manager.bids),
+        owner = crate::ID,
+    )]
+    pub bid_queue: UncheckedAccount<'info>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.asks),
+        owner = crate::ID,
+    )]
+    pub ask_queue: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct MatchOrders<'info> {
+    // Technically don't need the auctioneer to sign for this one
+    // pub auctioneer: Signer<'info>,
+    // Program Accounts
+    #[account(
+        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bump,
+        mut
+    )]
+    pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.orderbook_manager,
+    )]
+    pub orderbook_manager: Account<'info, MarketState>,
+    /// CHECK: This should be owned by the program
+    #[account(
         address = Pubkey::new_from_array(orderbook_manager.event_queue),
         owner = crate::ID,
         mut
@@ -307,3 +337,122 @@ pub struct CalculateClearingPrice<'info> {
     pub ask_queue: UncheckedAccount<'info>,
 }
 
+#[derive(Accounts)]
+pub struct ConsumeEvents<'info> {
+    // Program Accounts
+    #[account(
+        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bump,
+        mut
+    )]
+    pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.orderbook_manager,
+    )]
+    pub orderbook_manager: Account<'info, MarketState>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        owner = crate::ID,
+        mut
+    )]
+    pub event_queue: UncheckedAccount<'info>,
+    // Plus a bunch of Open orders accounts in remaining accounts
+}
+
+// Flexible on design decisions such as: 
+    // whether this function should be signed by the auctioneer
+    // whether the user has to provide associated token accounts (vs. regular ones)
+#[derive(Accounts)]
+pub struct SettleAndCloseOpenOrders<'info> {
+    #[account(mut)]
+    pub user: SystemAccount<'info>,
+    // Program Accounts
+    #[account(
+        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bump,
+    )]
+    pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = open_orders.bump,
+        mut,
+        close = user,
+    )]
+    pub open_orders: Box<Account<'info, OpenOrders>>,
+    // Token Accounts
+    #[account(
+        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.quote_vault,
+        mut
+    )]
+    pub quote_vault: Account<'info, TokenAccount>,
+    #[account(
+        seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.base_vault,
+        mut
+    )]
+    pub base_vault: Account<'info, TokenAccount>,
+    #[account(address = auction.quote_mint)]
+    pub quote_mint: Account<'info, Mint>,
+    #[account(address = auction.base_mint)]
+    pub base_mint: Account<'info, Mint>,
+    #[account(
+        associated_token::mint = quote_mint,
+        associated_token::authority = user,
+        mut
+    )]
+    pub user_quote: Account<'info, TokenAccount>,
+    #[account(
+        associated_token::mint = base_mint,
+        associated_token::authority = user,
+        mut
+    )]
+    pub user_base: Account<'info, TokenAccount>,
+    // Programs
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct CloseAobAccounts<'info> {
+    // Technically doesn't need to be a signer for this function
+    #[account(mut)]
+    pub auctioneer: Signer<'info>,
+    // Program Accounts
+    #[account(
+        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bump,
+        mut
+    )]
+    pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.orderbook_manager,
+        mut,
+        close = auctioneer,
+    )]
+    pub orderbook_manager: Account<'info, MarketState>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        owner = crate::ID,
+        mut
+    )]
+    pub event_queue: UncheckedAccount<'info>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.bids),
+        owner = crate::ID,
+        mut
+    )]
+    pub bid_queue: UncheckedAccount<'info>,
+    /// CHECK: This should be owned by the program
+    #[account(
+        address = Pubkey::new_from_array(orderbook_manager.asks),
+        owner = crate::ID,
+        mut
+    )]
+    pub ask_queue: UncheckedAccount<'info>,   
+}

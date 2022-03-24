@@ -71,6 +71,30 @@ pub mod auction_house {
         // Ok(())
     }
 
+    pub fn match_orders(_ctx: Context<MatchOrders>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
+    pub fn consume_events(_ctx: Context<ConsumeEvents>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
+    pub fn prune_orders(_ctx: Context<MatchOrders>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
+    pub fn settle_and_close_open_orders(_ctx: Context<SettleAndCloseOpenOrders>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
+
+    pub fn close_aob_accounts(_ctx: Context<CloseAobAccounts>) -> Result<()> {
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
+    }
 }
 
 #[derive(Accounts)]
