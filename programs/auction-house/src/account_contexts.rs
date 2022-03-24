@@ -7,6 +7,9 @@ use crate::account_data::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 
+// Flexible on design decisions such as:
+    // - Using start time as part of the seeds to allow more than one auction
+    //   per auctioneer account. Open to other suggestions on namespaces
 #[derive(Accounts)]
 #[instruction(start_time: i64)]
 pub struct InitAuction<'info> {
@@ -22,8 +25,6 @@ pub struct InitAuction<'info> {
         payer = auctioneer,
     )]
     pub auction: Box<Account<'info, Auction>>,
-    // Stores public and private keys needed for RSA encryption / decryption
-    // pub decryption_keys: Account<'info, DecryptionKeys>
     // Mints
     pub quote_mint: Account<'info, Mint>,
     pub base_mint: Account<'info, Mint>,
@@ -47,7 +48,7 @@ pub struct InitAuction<'info> {
     )]
     pub base_vault: Account<'info, TokenAccount>,
     // AOB accounts
-    /// CHECK: This one will be a PDA   
+    /// CHECK: This is a PDA   
     #[account(
         init, 
         seeds = [ORDERBOOK_MANAGER.as_bytes(), &start_time.to_le_bytes(), auctioneer.key().as_ref()],
@@ -56,23 +57,25 @@ pub struct InitAuction<'info> {
         payer = auctioneer,
     )]
     pub orderbook_manager: UncheckedAccount<'info>,
-    /// CHECK: This should be initialized with a set amount of space, zeroed and owned by the program
+    /// CHECK: This is zeroed and owned by the program
     #[account(zero, owner = crate::ID)]
     pub event_queue: UncheckedAccount<'info>,
-    /// CHECK: This should be initialized with a set amount of space, zeroed and owned by the program
+    /// CHECK: This is zeroed and owned by the program
     #[account(zero, owner = crate::ID)]
     pub bid_queue: UncheckedAccount<'info>,
-    /// CHECK: This should be initialized with a set amount of space, zeroed and owned by the program
+    /// CHECK: This is zeroed and owned by the program
     #[account(zero, owner = crate::ID)]
     pub ask_queue: UncheckedAccount<'info>,
-    // Sysvars?
+    // Sysvars
     pub rent: Sysvar<'info, Rent>,
     // Programs
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
-
+// Flexible on design decisions such as:
+    // should we check that the user has the associated token accounts that will 
+    // required later on when settling the auction
 #[derive(Accounts)]
 // #[instruction()]
 pub struct InitOpenOrders<'info> {
@@ -84,23 +87,6 @@ pub struct InitOpenOrders<'info> {
         bump = auction.bump,
     )]
     pub auction: Box<Account<'info, Auction>>,
-    // Check that the user already has the required associated token accounts
-    // Note: This check isn't strictly necessary and could be removed if desired
-    #[account(address = auction.quote_mint)]
-    pub quote_mint: Account<'info, Mint>,
-    #[account(address = auction.base_mint)]
-    pub base_mint: Account<'info, Mint>,
-    #[account(
-        associated_token::mint = quote_mint,
-        associated_token::authority = user,
-    )]
-    pub user_quote: Account<'info, TokenAccount>,
-    #[account(
-        associated_token::mint = base_mint,
-        associated_token::authority = user,
-    )]
-    pub user_base: Account<'info, TokenAccount>,
-    // Init user accounts
     #[account(
         init, 
         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
@@ -117,6 +103,21 @@ pub struct InitOpenOrders<'info> {
         payer = user,
     )]
     pub order_history: Account<'info, OrderHistory>,
+    // Token accounts
+    #[account(address = auction.quote_mint)]
+    pub quote_mint: Account<'info, Mint>,
+    #[account(address = auction.base_mint)]
+    pub base_mint: Account<'info, Mint>,
+    #[account(
+        associated_token::mint = quote_mint,
+        associated_token::authority = user,
+    )]
+    pub user_quote: Account<'info, TokenAccount>,
+    #[account(
+        associated_token::mint = base_mint,
+        associated_token::authority = user,
+    )]
+    pub user_base: Account<'info, TokenAccount>,
     // Programs
     pub system_program: Program<'info, System>,
 }
