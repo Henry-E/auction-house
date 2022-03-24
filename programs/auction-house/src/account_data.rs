@@ -9,7 +9,7 @@ use agnostic_orderbook;
 use crate::error::CustomErrors;
 
 #[account]
-// #[derive(Default)] TODO there's an error with having a default enum value
+#[derive(Default)]
 pub struct Auction {
     // General auction options
     pub bump: u8,
@@ -21,19 +21,14 @@ pub struct Auction {
     pub end_bids: i64,
     pub are_asks_encrypted: bool,
     pub are_bids_encrypted: bool,
-    pub final_price_type: FinalPriceTypes,
-    // AOB related options
-    // TODO: The public key of the vaults
-    // TODO: the base mint and quote mint
+    // pub final_price_type: FinalPriceTypes,
+    // Orderbook details
     pub quote_mint: Pubkey,
     pub base_mint: Pubkey,
     pub quote_vault: Pubkey,
     pub base_vault: Pubkey,
-
-    // TODO double check what options serum v4 uses
-    pub base_token_lots: u64,
-    pub quote_token_lots: u64,
-    pub min_base_token_quantity: u64,
+    pub min_base_order_size: u64,
+    pub tick_size: u64,
     // Intermediate information while matching the orderbook
     pub current_ask_key: u128,
     pub current_bid_key: u128,
@@ -48,17 +43,31 @@ pub struct Auction {
     pub clearing_price: u64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
-pub enum FinalPriceTypes {
-    BestBid,
-    Midpoint,
-}
+// #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
+// pub enum FinalPriceTypes {
+//     BestBid,
+//     Midpoint,
+// }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+// impl Default for FinalPriceTypes {
+//     fn default() -> Self { FinalPriceTypes::BestBid }
+// }
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct AobBumps {
     pub quote_vault: u8,
     pub base_vault: u8,
     pub orderbook_manager: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct InitAuctionArgs {
+    pub start_time: i64,
+    pub end_asks: i64,
+    pub start_bids: i64,
+    pub end_bids: i64, 
+    pub min_base_order_size: u64,
+    pub tick_size: u64,
 }
 
 #[account]

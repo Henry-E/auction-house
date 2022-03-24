@@ -30,9 +30,10 @@ pub mod auction_house {
         Ok(())
     }
 
-    pub fn init_auction(ctx: Context<InitAuction>, start_time: i64) -> Result<()> {
+    #[access_control(InitAuction::validate_args(args))]
+    pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
         let auction: &mut Auction = &mut *ctx.accounts.auction;
-        auction.start_time = start_time;
+        auction.start_time = args.start_time;
         Ok(())
     }
 

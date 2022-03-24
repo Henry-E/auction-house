@@ -6,4 +6,12 @@ pub enum CustomErrors {
     NotImplemented, // 6000
     #[msg("Invalid account data on AOB market state")]
     InvalidAobMarketState, // 6001
+    #[msg("bids and asks order periods should end in the future")]
+    InvalidEndTimes,
+    #[msg("bids and asks periods should start before they end")]
+    InvalidStartTimes,
+    #[msg("Min base order size should be greater than zero")]
+    InvalidMinBaseOrderSize,
+    #[msg("Tick size should be greater than zero")]
+    InvalidTickSize,
 }
