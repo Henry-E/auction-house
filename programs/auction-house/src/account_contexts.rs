@@ -364,6 +364,7 @@ pub struct ConsumeEvents<'info> {
 // Flexible on design decisions such as: 
     // whether this function should be signed by the auctioneer
     // whether the user has to provide associated token accounts (vs. regular ones)
+    // Whether the auctioneer account needs to sign
 #[derive(Accounts)]
 pub struct SettleAndCloseOpenOrders<'info> {
     #[account(mut)]
@@ -381,6 +382,12 @@ pub struct SettleAndCloseOpenOrders<'info> {
         close = user,
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
+    #[account(
+        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = order_history.bump,
+        mut
+    )]
+    pub order_history: Account<'info, OrderHistory>, // Persists after open_orders has closed
     // Token Accounts
     #[account(
         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
