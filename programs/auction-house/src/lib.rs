@@ -34,6 +34,17 @@ pub mod auction_house {
     pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
         let auction: &mut Auction = &mut *ctx.accounts.auction;
         auction.start_time = args.start_time;
+        
+        // TODO update auction account with a bunch of deets
+
+        // TODO initialize the orderbook accounts
+        
+            // Basically everything from create_market.rs in aob except
+            // the account checks
+            // Load market
+            // load event queue
+            // init slab
+
         Ok(())
     }
 

@@ -71,9 +71,14 @@ pub struct InitAuctionArgs {
 }
 
 #[account]
+#[derive(Default)]
 pub struct OpenOrders {
     pub bump: u8,
     pub authority: Pubkey,
+    // TODO: I don't think we need a max num orders param
+    // or to track it, because the program should error if too much
+    // data is accessed or written to.
+    // pub max_num_orders: u8,
     pub is_bids_account: bool,
     // Encryption stuff
     pub public_key: Vec<u8>,
