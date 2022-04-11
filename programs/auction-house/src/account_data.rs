@@ -78,7 +78,8 @@ pub struct OpenOrders {
     // TODO: I don't think we need a max num orders param
     // or to track it, because the program should error if too much
     // data is accessed or written to.
-    // pub max_num_orders: u8,
+    pub max_orders: u8,
+    // TODO replace with a Side enum possibly
     pub is_bids_account: bool,
     // Encryption stuff
     pub public_key: Vec<u8>,
@@ -96,6 +97,7 @@ pub struct OpenOrders {
 pub struct EncryptedOrder {
     pub nonce: Vec<u8>,
     pub cipher_text: Vec<u8>,
+    pub token_locked: u64,
 }
 
 #[account]
