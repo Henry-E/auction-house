@@ -14,4 +14,8 @@ pub enum CustomErrors {
     InvalidMinBaseOrderSize,
     #[msg("Tick size should be greater than zero")]
     InvalidTickSize,
+    #[msg("No ask orders")]
+    NoAskOrders,
+    #[msg("No bid orders")]
+    NoBidOrders,
 }

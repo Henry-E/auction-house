@@ -21,7 +21,8 @@ anchor-spl = "0.22.1"
 # Right now this will use whatever the latest commit is on the master branch.
 # Later on we can force it to stick to a specific commit if needed
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories
-agnostic-orderbook = {git = "https://github.com/Henry-E/agnostic-orderbook.git", features = ["no-entrypoint", "lib"]}
+# agnostic-orderbook = {git = "https://github.com/Henry-E/agnostic-orderbook.git", rev="5bc5102dbb28edd9456d8d00e81c465ae15b85ff", features = ["no-entrypoint", "lib"]}
+agnostic-orderbook = {path = "../../../agnostic-orderbook/program", features = ["no-entrypoint", "lib"]}
 bytemuck = {version = "1.7.2", features= ["derive"]}
 
 

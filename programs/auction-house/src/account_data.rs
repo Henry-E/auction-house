@@ -30,16 +30,16 @@ pub struct Auction {
     pub min_base_order_size: u64,
     pub tick_size: u64,
     // Intermediate information while matching the orderbook
-    pub current_ask_key: u128,
     pub current_bid_key: u128,
-    pub quantity_filled_in_this_bid: u64,
-    pub quantity_filled_in_this_ask: u64,
+    pub current_ask_key: u128,
+    pub current_bid_quantity_filled: u64,
+    pub current_ask_quantity_filled: u64,
     pub total_quantity_filled_so_far: u64,
     // Details once the auction clearing price has been found
     pub has_found_clearing_price: bool,
     pub total_quantity_matched: u64,
-    pub final_ask_price: u64,
     pub final_bid_price: u64,
+    pub final_ask_price: u64,
     pub clearing_price: u64,
 }
 
@@ -65,7 +65,7 @@ pub struct InitAuctionArgs {
     pub start_time: i64,
     pub end_asks: i64,
     pub start_bids: i64,
-    pub end_bids: i64, 
+    pub end_bids: i64,
     pub min_base_order_size: u64,
     pub tick_size: u64,
 }
@@ -108,7 +108,6 @@ pub struct OrderHistory {
     pub base_amount_returned: u64,
 }
 
-
 #[derive(Clone)]
 pub struct MarketState(agnostic_orderbook::state::MarketState);
 
@@ -124,7 +123,7 @@ impl anchor_lang::AccountDeserialize for MarketState {
             return Err(error!(CustomErrors::InvalidAobMarketState));
         };
         Ok(market)
-      }
+    }
 }
 
 impl anchor_lang::AccountSerialize for MarketState {}

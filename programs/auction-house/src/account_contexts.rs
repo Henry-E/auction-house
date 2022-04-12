@@ -1,16 +1,15 @@
 use anchor_lang::prelude::*;
 
-use crate::consts::*;
 use crate::account_data::*;
+use crate::consts::*;
 use crate::error::CustomErrors;
 // use crate::*;
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-
 // Flexible on design decisions such as:
-    // - Using start time as part of the seeds to allow more than one auction
-    //   per auctioneer account. Open to other suggestions on namespaces
+// - Using start time as part of the seeds to allow more than one auction
+//   per auctioneer account. Open to other suggestions on namespaces
 #[derive(Accounts)]
 #[instruction(args: InitAuctionArgs)]
 pub struct InitAuction<'info> {
@@ -19,7 +18,7 @@ pub struct InitAuction<'info> {
     // Program Accounts
     // An account struct with all of the auction options
     #[account(
-        init, 
+        init,
         seeds = [AUCTION.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
         bump,
         space = 1000,
@@ -28,7 +27,7 @@ pub struct InitAuction<'info> {
     pub auction: Box<Account<'info, Auction>>,
     /// CHECK: This is a PDA   
     #[account(
-        init, 
+        init,
         seeds = [ORDERBOOK_MANAGER.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
         bump,
         space = 1000,
@@ -94,8 +93,8 @@ impl InitAuction<'_> {
 }
 
 // Flexible on design decisions such as:
-    // should we check that the user has the associated token accounts that will 
-    // required later on when settling the auction
+// should we check that the user has the associated token accounts that will
+// required later on when settling the auction
 #[derive(Accounts)]
 // #[instruction()]
 pub struct InitOpenOrders<'info> {
@@ -108,7 +107,7 @@ pub struct InitOpenOrders<'info> {
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        init, 
+        init,
         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
         bump,
         space = 500, // ??? We need quite a lot really with the encryption stuff
@@ -116,7 +115,7 @@ pub struct InitOpenOrders<'info> {
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     #[account(
-        init, 
+        init,
         seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
         bump,
         space = 18,
@@ -195,7 +194,7 @@ pub struct NewOrder<'info> {
         mut
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
-    // AOB Accounts 
+    // AOB Accounts
     #[account(
         seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.orderbook_manager,
@@ -260,12 +259,12 @@ pub struct DecryptOrder<'info> {
         mut
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
-    // AOB Accounts 
+    // AOB Accounts
     #[account(
         seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auctioneer.key().as_ref()],
         bump = auction.bumps.orderbook_manager,
     )]
-    pub orderbook_manager: Account<'info, MarketState>,    
+    pub orderbook_manager: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
         address = Pubkey::new_from_array(orderbook_manager.event_queue),
@@ -382,10 +381,10 @@ pub struct ConsumeEvents<'info> {
     // Plus a bunch of Open orders accounts in remaining accounts
 }
 
-// Flexible on design decisions such as: 
-    // whether this function should be signed by the auctioneer
-    // whether the user has to provide associated token accounts (vs. regular ones)
-    // Whether the auctioneer account needs to sign
+// Flexible on design decisions such as:
+// whether this function should be signed by the auctioneer
+// whether the user has to provide associated token accounts (vs. regular ones)
+// Whether the auctioneer account needs to sign
 #[derive(Accounts)]
 pub struct SettleAndCloseOpenOrders<'info> {
     #[account(mut)]
@@ -482,5 +481,5 @@ pub struct CloseAobAccounts<'info> {
         owner = crate::ID,
         mut
     )]
-    pub ask_queue: UncheckedAccount<'info>,   
+    pub ask_queue: UncheckedAccount<'info>,
 }
