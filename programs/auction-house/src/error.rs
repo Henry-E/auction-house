@@ -18,4 +18,10 @@ pub enum CustomErrors {
     NoAskOrders,
     #[msg("No bid orders")]
     NoBidOrders,
+    #[msg("No orders in the orderbook")]
+    NoOrdersInOrderbook,
+    #[msg("Clearing price not found yet")]
+    NoClearingPriceYet,
+    #[msg("AOB Event queue is full")]
+    AobEventQueueFull,
 }

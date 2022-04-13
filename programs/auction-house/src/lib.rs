@@ -1,8 +1,14 @@
 use anchor_lang::prelude::*;
 
 use agnostic_orderbook::critbit::LeafNode;
+use agnostic_orderbook::error::AoError;
 use agnostic_orderbook::orderbook::OrderBookState;
-use agnostic_orderbook::state::Side;
+use agnostic_orderbook::state::{
+    Event, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN,
+};
+use agnostic_orderbook::utils::{fp32_div, fp32_mul};
+
+use std::cmp;
 
 use account_contexts::*;
 use account_data::*;
@@ -262,6 +268,8 @@ pub mod auction_house {
 
         if auction.has_found_clearing_price {
             auction.total_quantity_matched = auction.total_quantity_filled_so_far;
+            auction.remaining_bid_fills = auction.total_quantity_filled_so_far;
+            auction.remaining_ask_fills = auction.total_quantity_filled_so_far;
             auction.final_bid_price = current_bid.price();
             auction.final_ask_price = current_ask.price();
             // For now clearing price defaults to lowest bid that fills the ask quantity
@@ -272,17 +280,105 @@ pub mod auction_house {
         // Ok(())
     }
 
-    pub fn match_orders(_ctx: Context<MatchOrders>) -> Result<()> {
+    #[access_control(ctx.accounts.access_control())]
+    pub fn match_orders(ctx: Context<MatchOrders>, limit: u16) -> Result<()> {
+        let auction = &mut ctx.accounts.auction;
+
+        let header = {
+            let mut event_queue_data: &[u8] =
+                &ctx.accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
+            EventQueueHeader::deserialize(&mut event_queue_data)
+                .unwrap()
+                .check()?
+        };
+        let mut event_queue = EventQueue::new_safe(
+            header,
+            &ctx.accounts.event_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+        )?;
+
+        let mut orderbook = OrderBookState::new_safe(
+            &ctx.accounts.bid_queue.to_account_info(),
+            &ctx.accounts.ask_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+            CALLBACK_ID_LEN,
+        )?;
+
+        // Process all the bids first, then move onto the asks
+        let side: Side;
+        if orderbook.bids_is_empty() {
+            side = Side::Ask;
+        } else {
+            side = Side::Bid;
+        }
+
+        for _ in 0..limit {
+            // bbo -> best bid or offer
+            let bbo_key = match orderbook.find_bbo(side) {
+                None => {
+                    // Queue is empty
+                    break;
+                }
+                Some(key) => key,
+            };
+            let bbo_node = *orderbook
+                .get_tree(side)
+                .get_node(bbo_key)
+                .unwrap()
+                .as_leaf()
+                .unwrap();
+            match side {
+                Side::Ask => {
+                    let mut fill_size: u64 = 0;
+                    if auction.remaining_ask_fills > 0 {
+                        fill_size = cmp::min(bbo_node.base_quantity, auction.remaining_ask_fills);
+                        let quote_size = fp32_mul(fill_size, auction.clearing_price);
+                        let order_fill = Event::Fill {
+                            taker_side: side.opposite(),
+                            maker_callback_info: orderbook
+                                .get_tree(side)
+                                .get_callback_info(bbo_node.callback_info_pt as usize)
+                                .to_owned(),
+                            taker_callback_info: Vec::new(),
+                            maker_order_id: bbo_node.order_id(),
+                            quote_size,
+                            base_size: fill_size,
+                        };
+                        // TODO Is this error being mapped correctly?
+                        event_queue
+                            .push_back(order_fill)
+                            .map_err(|_| CustomErrors::AobEventQueueFull)?;
+                        auction.remaining_ask_fills =
+                            auction.remaining_ask_fills.checked_sub(fill_size).unwrap();
+                    }
+                    let out_size = bbo_node.base_quantity.checked_sub(fill_size).unwrap();
+                    let order_out = Event::Out {
+                        side,
+                        delete: true,
+                        order_id: bbo_node.order_id(),
+                        base_size: out_size,
+                        callback_info: orderbook
+                            .get_tree(side)
+                            .get_callback_info(bbo_node.callback_info_pt as usize)
+                            .to_owned(),
+                    };
+                    event_queue
+                        .push_back(order_out)
+                        .map_err(|_| CustomErrors::AobEventQueueFull)?;
+                    orderbook
+                        .get_tree(side)
+                        .remove_by_key(bbo_node.key)
+                        .unwrap();
+                }
+                Side::Bid => {}
+            }
+        }
+
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }
 
     pub fn consume_events(_ctx: Context<ConsumeEvents>) -> Result<()> {
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
-    }
-
-    pub fn prune_orders(_ctx: Context<MatchOrders>) -> Result<()> {
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }

@@ -38,6 +38,8 @@ pub struct Auction {
     // Details once the auction clearing price has been found
     pub has_found_clearing_price: bool,
     pub total_quantity_matched: u64,
+    pub remaining_ask_fills: u64,
+    pub remaining_bid_fills: u64,
     pub final_bid_price: u64,
     pub final_ask_price: u64,
     pub clearing_price: u64,

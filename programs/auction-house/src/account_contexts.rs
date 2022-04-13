@@ -3,7 +3,8 @@ use anchor_lang::prelude::*;
 use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
-// use crate::*;
+
+use agnostic_orderbook::orderbook::OrderBookState;
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
@@ -355,6 +356,30 @@ pub struct MatchOrders<'info> {
         mut
     )]
     pub ask_queue: UncheckedAccount<'info>,
+}
+
+impl<'info> MatchOrders<'info> {
+    /// Access Controls
+    /// 1. Clearing price must have been found before matching can happen
+    /// 2. There must be orders in the orderbook for matching to happen
+    pub fn access_control(&self) -> Result<()> {
+        if !self.auction.has_found_clearing_price {
+            return Err(error!(CustomErrors::NoClearingPriceYet));
+        }
+
+        let orderbook = OrderBookState::new_safe(
+            &self.bid_queue.to_account_info(),
+            &self.ask_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+            CALLBACK_ID_LEN,
+        )?;
+
+        if orderbook.is_empty() {
+            return Err(error!(CustomErrors::NoOrdersInOrderbook));
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
