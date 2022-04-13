@@ -344,10 +344,9 @@ pub mod auction_house {
                             quote_size,
                             base_size: fill_size,
                         };
-                        // TODO Is this error being mapped correctly?
                         event_queue
                             .push_back(order_fill)
-                            .map_err(|_| CustomErrors::AobEventQueueFull)?;
+                            .map_err(|_| error!(CustomErrors::AobEventQueueFull))?;
                         auction.remaining_ask_fills =
                             auction.remaining_ask_fills.checked_sub(fill_size).unwrap();
                     }
@@ -364,15 +363,67 @@ pub mod auction_house {
                     };
                     event_queue
                         .push_back(order_out)
-                        .map_err(|_| CustomErrors::AobEventQueueFull)?;
+                        .map_err(|_| error!(CustomErrors::AobEventQueueFull))?;
                     orderbook
                         .get_tree(side)
                         .remove_by_key(bbo_node.key)
                         .unwrap();
                 }
-                Side::Bid => {}
+                Side::Bid => {
+                    let mut fill_size: u64 = 0;
+                    if auction.remaining_bid_fills > 0 {
+                        fill_size = cmp::min(bbo_node.base_quantity, auction.remaining_bid_fills);
+                        let quote_size = fp32_mul(fill_size, auction.clearing_price);
+                        let order_fill = Event::Fill {
+                            taker_side: side.opposite(),
+                            maker_callback_info: orderbook
+                                .get_tree(side)
+                                .get_callback_info(bbo_node.callback_info_pt as usize)
+                                .to_owned(),
+                            taker_callback_info: Vec::new(),
+                            maker_order_id: bbo_node.order_id(),
+                            quote_size,
+                            base_size: fill_size,
+                        };
+                        event_queue
+                            .push_back(order_fill)
+                            .map_err(|_| error!(CustomErrors::AobEventQueueFull))?;
+                        auction.remaining_bid_fills =
+                            auction.remaining_bid_fills.checked_sub(fill_size).unwrap();
+                    }
+                    let mut out_size = bbo_node.base_quantity - fill_size;
+                    // Bids get a partial refund if they're filled at a lower price
+                    if bbo_node.price() > auction.clearing_price {
+                        let quote_owed = fp32_mul(fill_size, bbo_node.price())
+                            .checked_sub(fp32_mul(fill_size, auction.clearing_price))
+                            .unwrap();
+                        // Event::out only takes base size as an argument so
+                        // need to convert quote owed to base using bbo's price
+                        let base_owed = fp32_div(quote_owed, bbo_node.price());
+                        out_size = out_size.checked_add(base_owed).unwrap();
+                    }
+                    let order_out = Event::Out {
+                        side,
+                        delete: true,
+                        order_id: bbo_node.order_id(),
+                        base_size: out_size,
+                        callback_info: orderbook
+                            .get_tree(side)
+                            .get_callback_info(bbo_node.callback_info_pt as usize)
+                            .to_owned(),
+                    };
+                    event_queue
+                        .push_back(order_out)
+                        .map_err(|_| error!(CustomErrors::AobEventQueueFull))?;
+                    orderbook
+                        .get_tree(side)
+                        .remove_by_key(bbo_node.key)
+                        .unwrap();
+                }
             }
         }
+
+        orderbook.commit_changes();
 
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
