@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 use agnostic_orderbook::critbit::LeafNode;
-use agnostic_orderbook::error::AoError;
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::{
     Event, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN,
@@ -9,24 +8,24 @@ use agnostic_orderbook::state::{
 use agnostic_orderbook::utils::{fp32_div, fp32_mul};
 
 use std::cmp;
+use std::convert::TryInto;
 
 use account_contexts::*;
 use account_data::*;
+use consts::*;
 use error::*;
+use instructions::*;
 
 mod account_contexts;
 mod account_data;
 mod consts;
 mod error;
+mod instructions;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod auction_house {
-    use std::convert::TryInto;
-
-    use consts::{CALLBACK_ID_LEN, CALLBACK_INFO_LEN};
-
     use super::*;
 
     pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
@@ -44,8 +43,9 @@ pub mod auction_house {
 
     #[access_control(InitAuction::validate_args(args))]
     pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
-        let auction: &mut Auction = &mut *ctx.accounts.auction;
-        auction.start_time = args.start_time;
+        instructions::init_auction(ctx, args)
+        // let auction: &mut Auction = &mut *ctx.accounts.auction;
+        // auction.start_time = args.start_time;
 
         // TODO update auction account with a bunch of deets
 
@@ -57,7 +57,7 @@ pub mod auction_house {
         // load event queue
         // init slab
 
-        Ok(())
+        // Ok(())
     }
 
     pub fn init_open_orders(_ctx: Context<InitOpenOrders>) -> Result<()> {

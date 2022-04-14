@@ -20,6 +20,7 @@ pub struct Auction {
     pub end_asks: i64,
     pub start_bids: i64,
     pub end_bids: i64,
+    pub end_decryption_phase: i64,
     pub are_asks_encrypted: bool,
     pub are_bids_encrypted: bool,
     // pub final_price_type: FinalPriceTypes,
@@ -60,21 +61,21 @@ pub struct Auction {
 pub struct AobBumps {
     pub quote_vault: u8,
     pub base_vault: u8,
-    pub orderbook_manager: u8,
+    pub market_state: u8,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub struct InitAuctionArgs {
-    pub start_time: i64,
-    pub end_asks: i64,
-    pub start_bids: i64,
-    pub end_bids: i64,
-    pub min_base_order_size: u64,
-    pub tick_size: u64,
-}
+// #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+// pub struct InitAuctionArgs {
+//     pub start_time: i64,
+//     pub end_asks: i64,
+//     pub start_bids: i64,
+//     pub end_bids: i64,
+//     pub min_base_order_size: u64,
+//     pub tick_size: u64,
+// }
 
 #[account]
-// #[derive(Default)]
+#[derive(Default)]
 pub struct OpenOrders {
     pub bump: u8,
     pub authority: Pubkey,

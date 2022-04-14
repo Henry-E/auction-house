@@ -10,6 +10,8 @@ pub enum CustomErrors {
     InvalidEndTimes,
     #[msg("bids and asks periods should start before they end")]
     InvalidStartTimes,
+    #[msg("Invalid decryption end time, needs to finish after bids / asks end")]
+    InvalidDecryptionEndTime,
     #[msg("Min base order size should be greater than zero")]
     InvalidMinBaseOrderSize,
     #[msg("Tick size should be greater than zero")]

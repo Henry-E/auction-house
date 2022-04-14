@@ -8,90 +8,90 @@ use agnostic_orderbook::orderbook::OrderBookState;
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-// Flexible on design decisions such as:
-// - Using start time as part of the seeds to allow more than one auction
-//   per auctioneer account. Open to other suggestions on namespaces
-#[derive(Accounts)]
-#[instruction(args: InitAuctionArgs)]
-pub struct InitAuction<'info> {
-    #[account(mut)]
-    pub auctioneer: Signer<'info>,
-    // Program Accounts
-    // An account struct with all of the auction options
-    #[account(
-        init,
-        seeds = [AUCTION.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
-        bump,
-        space = 1000,
-        payer = auctioneer,
-    )]
-    pub auction: Box<Account<'info, Auction>>,
-    /// CHECK: This is a PDA   
-    #[account(
-        init,
-        seeds = [ORDERBOOK_MANAGER.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
-        bump,
-        space = 1000,
-        payer = auctioneer,
-    )]
-    pub orderbook_manager: UncheckedAccount<'info>,
-    /// CHECK: This is zeroed and owned by the program
-    #[account(zero, owner = crate::ID)]
-    pub event_queue: UncheckedAccount<'info>,
-    /// CHECK: This is zeroed and owned by the program
-    #[account(zero, owner = crate::ID)]
-    pub bid_queue: UncheckedAccount<'info>,
-    /// CHECK: This is zeroed and owned by the program
-    #[account(zero, owner = crate::ID)]
-    pub ask_queue: UncheckedAccount<'info>,
-    // Token vaults
-    pub quote_mint: Account<'info, Mint>,
-    pub base_mint: Account<'info, Mint>,
-    #[account(
-        init,
-        token::mint = base_mint,
-        token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [QUOTE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
-        bump,
-        payer = auctioneer,
-    )]
-    pub quote_vault: Account<'info, TokenAccount>,
-    #[account(
-        init,
-        token::mint = base_mint,
-        token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [BASE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
-        bump,
-        payer = auctioneer,
-    )]
-    pub base_vault: Account<'info, TokenAccount>,
-    // Sysvars
-    pub rent: Sysvar<'info, Rent>,
-    // Programs
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-}
+// // Flexible on design decisions such as:
+// // - Using start time as part of the seeds to allow more than one auction
+// //   per auctioneer account. Open to other suggestions on namespaces
+// #[derive(Accounts)]
+// #[instruction(args: InitAuctionArgs)]
+// pub struct InitAuction<'info> {
+//     #[account(mut)]
+//     pub auctioneer: Signer<'info>,
+//     // Program Accounts
+//     // An account struct with all of the auction options
+//     #[account(
+//         init,
+//         seeds = [AUCTION.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         bump,
+//         space = 1000,
+//         payer = auctioneer,
+//     )]
+//     pub auction: Box<Account<'info, Auction>>,
+//     /// CHECK: This is a PDA
+//     #[account(
+//         init,
+//         seeds = [MARKET_STATE.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         bump,
+//         space = 1000,
+//         payer = auctioneer,
+//     )]
+//     pub market_state: UncheckedAccount<'info>,
+//     /// CHECK: This is zeroed and owned by the program
+//     #[account(zero, owner = crate::ID)]
+//     pub event_queue: UncheckedAccount<'info>,
+//     /// CHECK: This is zeroed and owned by the program
+//     #[account(zero, owner = crate::ID)]
+//     pub bid_queue: UncheckedAccount<'info>,
+//     /// CHECK: This is zeroed and owned by the program
+//     #[account(zero, owner = crate::ID)]
+//     pub ask_queue: UncheckedAccount<'info>,
+//     // Token vaults
+//     pub quote_mint: Account<'info, Mint>,
+//     pub base_mint: Account<'info, Mint>,
+//     #[account(
+//         init,
+//         token::mint = base_mint,
+//         token::authority = auctioneer, // It should probably be the auction account, since it will sign
+//         seeds = [QUOTE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         bump,
+//         payer = auctioneer,
+//     )]
+//     pub quote_vault: Account<'info, TokenAccount>,
+//     #[account(
+//         init,
+//         token::mint = base_mint,
+//         token::authority = auctioneer, // It should probably be the auction account, since it will sign
+//         seeds = [BASE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         bump,
+//         payer = auctioneer,
+//     )]
+//     pub base_vault: Account<'info, TokenAccount>,
+//     // Sysvars
+//     pub rent: Sysvar<'info, Rent>,
+//     // Programs
+//     pub token_program: Program<'info, Token>,
+//     pub system_program: Program<'info, System>,
+// }
 
-impl InitAuction<'_> {
-    pub fn validate_args(args: InitAuctionArgs) -> Result<()> {
-        let clock = Clock::get()?;
-        // Let's not be too harsh about start times
-        if (args.start_time <= args.end_asks) | (args.start_bids <= args.end_bids) {
-            return Err(error!(CustomErrors::InvalidStartTimes));
-        }
-        if (args.end_asks <= clock.unix_timestamp) | (args.end_bids <= clock.unix_timestamp) {
-            return Err(error!(CustomErrors::InvalidEndTimes));
-        }
-        if args.min_base_order_size <= 0 {
-            return Err(error!(CustomErrors::InvalidMinBaseOrderSize));
-        }
-        if args.tick_size <= 0 {
-            return Err(error!(CustomErrors::InvalidTickSize));
-        }
+// impl InitAuction<'_> {
+//     pub fn validate_args(args: InitAuctionArgs) -> Result<()> {
+//         let clock = Clock::get()?;
+//         // Let's not be too harsh about start times
+//         if (args.start_time <= args.end_asks) | (args.start_bids <= args.end_bids) {
+//             return Err(error!(CustomErrors::InvalidStartTimes));
+//         }
+//         if (args.end_asks <= clock.unix_timestamp) | (args.end_bids <= clock.unix_timestamp) {
+//             return Err(error!(CustomErrors::InvalidEndTimes));
+//         }
+//         if args.min_base_order_size <= 0 {
+//             return Err(error!(CustomErrors::InvalidMinBaseOrderSize));
+//         }
+//         if args.tick_size <= 0 {
+//             return Err(error!(CustomErrors::InvalidTickSize));
+//         }
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }
 
 // Flexible on design decisions such as:
 // should we check that the user has the associated token accounts that will
@@ -197,27 +197,27 @@ pub struct NewOrder<'info> {
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts
     #[account(
-        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.orderbook_manager,
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.market_state,
     )]
-    pub orderbook_manager: Account<'info, MarketState>,
+    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        address = Pubkey::new_from_array(market_state.event_queue),
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.bids),
+        address = Pubkey::new_from_array(market_state.bids),
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.asks),
+        address = Pubkey::new_from_array(market_state.asks),
         owner = crate::ID,
         mut
     )]
@@ -262,27 +262,27 @@ pub struct DecryptOrder<'info> {
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts
     #[account(
-        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auctioneer.key().as_ref()],
-        bump = auction.bumps.orderbook_manager,
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        bump = auction.bumps.market_state,
     )]
-    pub orderbook_manager: Account<'info, MarketState>,
+    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        address = Pubkey::new_from_array(market_state.event_queue),
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.bids),
+        address = Pubkey::new_from_array(market_state.bids),
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.asks),
+        address = Pubkey::new_from_array(market_state.asks),
         owner = crate::ID,
         mut
     )]
@@ -301,19 +301,19 @@ pub struct CalculateClearingPrice<'info> {
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.orderbook_manager,
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.market_state,
     )]
-    pub orderbook_manager: Account<'info, MarketState>,
+    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.bids),
+        address = Pubkey::new_from_array(market_state.bids),
         owner = crate::ID,
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.asks),
+        address = Pubkey::new_from_array(market_state.asks),
         owner = crate::ID,
     )]
     pub ask_queue: UncheckedAccount<'info>,
@@ -331,27 +331,27 @@ pub struct MatchOrders<'info> {
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.orderbook_manager,
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.market_state,
     )]
-    pub orderbook_manager: Account<'info, MarketState>,
+    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        address = Pubkey::new_from_array(market_state.event_queue),
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.bids),
+        address = Pubkey::new_from_array(market_state.bids),
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.asks),
+        address = Pubkey::new_from_array(market_state.asks),
         owner = crate::ID,
         mut
     )]
@@ -392,13 +392,13 @@ pub struct ConsumeEvents<'info> {
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.orderbook_manager,
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.market_state,
     )]
-    pub orderbook_manager: Account<'info, MarketState>,
+    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        address = Pubkey::new_from_array(market_state.event_queue),
         owner = crate::ID,
         mut
     )]
@@ -480,29 +480,29 @@ pub struct CloseAobAccounts<'info> {
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [ORDERBOOK_MANAGER.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.orderbook_manager,
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        bump = auction.bumps.market_state,
         mut,
         close = auctioneer,
     )]
-    pub orderbook_manager: Account<'info, MarketState>,
+    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.event_queue),
+        address = Pubkey::new_from_array(market_state.event_queue),
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.bids),
+        address = Pubkey::new_from_array(market_state.bids),
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(orderbook_manager.asks),
+        address = Pubkey::new_from_array(market_state.asks),
         owner = crate::ID,
         mut
     )]
