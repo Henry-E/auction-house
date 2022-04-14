@@ -23,6 +23,8 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod auction_house {
+    use std::convert::TryInto;
+
     use consts::{CALLBACK_ID_LEN, CALLBACK_INFO_LEN};
 
     use super::*;
@@ -429,7 +431,162 @@ pub mod auction_house {
         // Ok(())
     }
 
-    pub fn consume_events(_ctx: Context<ConsumeEvents>) -> Result<()> {
+    pub fn consume_events(
+        ctx: Context<ConsumeEvents>,
+        limit: u16,
+        allow_no_op: bool,
+    ) -> Result<()> {
+        // TODO We've found 3 different ways to load the event queue, which way is the correct one
+        let header = {
+            let mut event_queue_data: &[u8] =
+                &ctx.accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
+            EventQueueHeader::deserialize(&mut event_queue_data)
+                .unwrap()
+                .check()?
+        };
+        let mut event_queue = EventQueue::new_safe(
+            header,
+            &ctx.accounts.event_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+        )?;
+
+        let mut total_iterations: u16 = 0;
+
+        for event in event_queue.iter().take(limit as usize) {
+            // TODO make sure that this loop returns errors correctly
+            match event {
+                // We don't have the concept of a taker, so everything
+                // hereafter refers to the maker as the user
+                Event::Fill {
+                    taker_side,
+                    maker_order_id: _,
+                    quote_size,
+                    base_size,
+                    maker_callback_info,
+                    taker_callback_info: _,
+                } => {
+                    let user_side = taker_side.opposite();
+                    let user_pubkey =
+                        Pubkey::new_from_array(maker_callback_info.try_into().unwrap());
+                    let user_account_info = &ctx.remaining_accounts[ctx
+                        .remaining_accounts
+                        .binary_search_by_key(&user_pubkey, |remaining_account| {
+                            *remaining_account.key
+                        })
+                        .map_err(|_| {
+                            error!(CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts)
+                        })?];
+                    let mut user_open_orders: Account<OpenOrders> =
+                        Account::try_from(user_account_info)?;
+                    // TODO what (if any) account validation is necessary?
+                    // 1. Easy to check the sides match
+                    // 2. Could check PDA but would prefer to do at the start
+                    //  of the function, not in the loop, too inefficient
+                    if user_open_orders.side != user_side {
+                        return Err(error!(CustomErrors::UserSideDiffFromEventSide));
+                    }
+                    match user_side {
+                        Side::Ask => {
+                            user_open_orders.quote_token_free = user_open_orders
+                                .quote_token_free
+                                .checked_add(quote_size)
+                                .unwrap();
+                            user_open_orders.base_token_locked = user_open_orders
+                                .base_token_locked
+                                .checked_sub(base_size)
+                                .unwrap();
+                        }
+                        Side::Bid => {
+                            user_open_orders.base_token_free = user_open_orders
+                                .base_token_free
+                                .checked_add(base_size)
+                                .unwrap();
+                            user_open_orders.quote_token_locked = user_open_orders
+                                .quote_token_locked
+                                .checked_sub(quote_size)
+                                .unwrap();
+                        }
+                    }
+                    user_open_orders.exit(ctx.program_id)?;
+                }
+                Event::Out {
+                    side,
+                    order_id,
+                    base_size,
+                    callback_info,
+                    delete: _,
+                } => {
+                    let user_side = side;
+                    let user_pubkey = Pubkey::new_from_array(callback_info.try_into().unwrap());
+                    let user_account_info = &ctx.remaining_accounts[ctx
+                        .remaining_accounts
+                        .binary_search_by_key(&user_pubkey, |remaining_account| {
+                            *remaining_account.key
+                        })
+                        .map_err(|_| {
+                            error!(CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts)
+                        })?];
+                    let mut user_open_orders: Account<OpenOrders> =
+                        Account::try_from(user_account_info)?;
+                    // TODO what (if any) account validation is necessary?
+                    // 1. Easy to check the sides match
+                    // 2. Could check PDA but would prefer to do at the start
+                    //  of the function, not in the loop, too inefficient
+                    if user_open_orders.side != user_side {
+                        return Err(error!(CustomErrors::UserSideDiffFromEventSide));
+                    }
+                    match user_side {
+                        Side::Ask => {
+                            user_open_orders.base_token_free = user_open_orders
+                                .base_token_free
+                                .checked_add(base_size)
+                                .unwrap();
+                            user_open_orders.base_token_locked = user_open_orders
+                                .base_token_locked
+                                .checked_sub(base_size)
+                                .unwrap();
+                        }
+                        Side::Bid => {
+                            let price = (order_id >> 64) as u64;
+                            let quote_size = fp32_mul(base_size, price);
+                            user_open_orders.quote_token_free = user_open_orders
+                                .quote_token_free
+                                .checked_add(quote_size)
+                                .unwrap();
+                            user_open_orders.quote_token_locked = user_open_orders
+                                .quote_token_locked
+                                .checked_sub(quote_size)
+                                .unwrap();
+                        }
+                    }
+
+                    // TODO Add some of the serum v4 implementations on OpenOrders
+                    // struct to add and remove orders more efficiently
+                    let order_idx = user_open_orders
+                        .orders
+                        .iter()
+                        .enumerate()
+                        .find(|(_, this_order)| **this_order == order_id)
+                        .ok_or(error!(CustomErrors::OrderIdNotFound))?
+                        .0;
+                    user_open_orders.orders.remove(order_idx);
+
+                    user_open_orders.exit(ctx.program_id)?;
+                }
+            }
+
+            total_iterations += 1;
+        }
+
+        if total_iterations == 0 && !allow_no_op {
+            return Err(error!(CustomErrors::NoEventsProcessed));
+        }
+
+        event_queue.pop_n(total_iterations.into());
+        let mut event_queue_data: &mut [u8] = &mut ctx.accounts.event_queue.data.borrow_mut();
+        event_queue.header.serialize(&mut event_queue_data).unwrap();
+        msg!("num events processed: {}", total_iterations);
+
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }

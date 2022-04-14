@@ -24,4 +24,12 @@ pub enum CustomErrors {
     NoClearingPriceYet,
     #[msg("AOB Event queue is full")]
     AobEventQueueFull,
+    #[msg("No events processed")]
+    NoEventsProcessed,
+    #[msg("Open orders pubkey not found in remaining accounts")]
+    MissingOpenOrdersPubkeyInRemainingAccounts,
+    #[msg("User's side doesn't make event side, definitely shouldn't ever happen")]
+    UserSideDiffFromEventSide,
+    #[msg("Order id not found in list of orders")]
+    OrderIdNotFound,
 }

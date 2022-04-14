@@ -4,7 +4,8 @@ use bytemuck::try_from_bytes;
 
 use std::ops::Deref;
 
-use agnostic_orderbook;
+// use agnostic_orderbook;
+use agnostic_orderbook::state::Side;
 
 use crate::error::CustomErrors;
 
@@ -73,7 +74,7 @@ pub struct InitAuctionArgs {
 }
 
 #[account]
-#[derive(Default)]
+// #[derive(Default)]
 pub struct OpenOrders {
     pub bump: u8,
     pub authority: Pubkey,
@@ -82,7 +83,7 @@ pub struct OpenOrders {
     // data is accessed or written to.
     pub max_orders: u8,
     // TODO replace with a Side enum possibly
-    pub is_bids_account: bool,
+    pub side: Side,
     // Encryption stuff
     pub public_key: Vec<u8>,
     pub encrypted_orders: Vec<EncryptedOrder>, // Probably max 4 - 8 orders
