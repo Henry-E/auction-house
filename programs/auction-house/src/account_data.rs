@@ -107,7 +107,7 @@ pub struct EncryptedOrder {
 #[account]
 pub struct OrderHistory {
     pub bump: u8,
-    pub is_bids_account: bool,
+    pub side: Side,
     pub quote_amount_returned: u64,
     pub base_amount_returned: u64,
 }

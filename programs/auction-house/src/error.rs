@@ -34,4 +34,8 @@ pub enum CustomErrors {
     UserSideDiffFromEventSide,
     #[msg("Order id not found in list of orders")]
     OrderIdNotFound,
+    #[msg("Time for placing bid or ask orders has finished")]
+    BidOrAskOrdersAreFinished,
+    #[msg("Max orders value is either too high or too low, min 1 max 8")]
+    MaxOrdersValueIsInvalid,
 }

@@ -6,6 +6,7 @@ use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
 
+use agnostic_orderbook::critbit::Slab;
 use agnostic_orderbook::state::{AccountTag, EventQueueHeader, MarketState};
 
 // Flexible on design decisions such as:
@@ -140,7 +141,7 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
         ..(*ctx.accounts.auction).clone().into_inner()
     });
 
-    // Init market_state - which we call market_state
+    // Init market_state
     let mut market_state = MarketState::get_unchecked(&ctx.accounts.market_state);
 
     *market_state = MarketState {
@@ -164,8 +165,13 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
         .serialize(&mut (&mut ctx.accounts.event_queue.data.borrow_mut() as &mut [u8]))
         .unwrap();
 
-    // Init the actual orderbook
-
+    // Init orderbook
+    Slab::initialize(
+        &ctx.accounts.bid_queue,
+        &ctx.accounts.ask_queue,
+        ctx.accounts.market_state.key(),
+        CALLBACK_INFO_LEN,
+    );
 
     Ok(())
 }

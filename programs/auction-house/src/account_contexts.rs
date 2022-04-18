@@ -93,54 +93,54 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     }
 // }
 
-// Flexible on design decisions such as:
-// should we check that the user has the associated token accounts that will
-// required later on when settling the auction
-#[derive(Accounts)]
-// #[instruction()]
-pub struct InitOpenOrders<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
-    // Program accounts
-    #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bump,
-    )]
-    pub auction: Box<Account<'info, Auction>>,
-    #[account(
-        init,
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump,
-        space = 500, // ??? We need quite a lot really with the encryption stuff
-        payer = user,
-    )]
-    pub open_orders: Box<Account<'info, OpenOrders>>,
-    #[account(
-        init,
-        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump,
-        space = 18,
-        payer = user,
-    )]
-    pub order_history: Account<'info, OrderHistory>,
-    // Token accounts
-    #[account(address = auction.quote_mint)]
-    pub quote_mint: Account<'info, Mint>,
-    #[account(address = auction.base_mint)]
-    pub base_mint: Account<'info, Mint>,
-    #[account(
-        associated_token::mint = quote_mint,
-        associated_token::authority = user,
-    )]
-    pub user_quote: Account<'info, TokenAccount>,
-    #[account(
-        associated_token::mint = base_mint,
-        associated_token::authority = user,
-    )]
-    pub user_base: Account<'info, TokenAccount>,
-    // Programs
-    pub system_program: Program<'info, System>,
-}
+// // Flexible on design decisions such as:
+// // should we check that the user has the associated token accounts that will
+// // required later on when settling the auction
+// #[derive(Accounts)]
+// // #[instruction()]
+// pub struct InitOpenOrders<'info> {
+//     #[account(mut)]
+//     pub user: Signer<'info>,
+//     // Program accounts
+//     #[account(
+//         seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump = auction.bump,
+//     )]
+//     pub auction: Box<Account<'info, Auction>>,
+//     #[account(
+//         init,
+//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump,
+//         space = 500, // ??? We need quite a lot really with the encryption stuff
+//         payer = user,
+//     )]
+//     pub open_orders: Box<Account<'info, OpenOrders>>,
+//     #[account(
+//         init,
+//         seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump,
+//         space = 18,
+//         payer = user,
+//     )]
+//     pub order_history: Account<'info, OrderHistory>,
+//     // Token accounts
+//     #[account(address = auction.quote_mint)]
+//     pub quote_mint: Account<'info, Mint>,
+//     #[account(address = auction.base_mint)]
+//     pub base_mint: Account<'info, Mint>,
+//     #[account(
+//         associated_token::mint = quote_mint,
+//         associated_token::authority = user,
+//     )]
+//     pub user_quote: Account<'info, TokenAccount>,
+//     #[account(
+//         associated_token::mint = base_mint,
+//         associated_token::authority = user,
+//     )]
+//     pub user_base: Account<'info, TokenAccount>,
+//     // Programs
+//     pub system_program: Program<'info, System>,
+// }
 
 #[derive(Accounts)]
 pub struct NewEncryptedOrder<'info> {

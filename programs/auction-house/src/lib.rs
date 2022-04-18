@@ -44,24 +44,15 @@ pub mod auction_house {
     #[access_control(InitAuction::validate_args(args))]
     pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
         instructions::init_auction(ctx, args)
-        // let auction: &mut Auction = &mut *ctx.accounts.auction;
-        // auction.start_time = args.start_time;
-
-        // TODO update auction account with a bunch of deets
-
-        // TODO initialize the orderbook accounts
-
-        // Basically everything from create_market.rs in aob except
-        // the account checks
-        // Load market
-        // load event queue
-        // init slab
-
-        // Ok(())
     }
 
-    pub fn init_open_orders(_ctx: Context<InitOpenOrders>) -> Result<()> {
-        Err(error!(CustomErrors::NotImplemented))
+    #[access_control(ctx.accounts.access_control(side, max_orders))]
+    pub fn init_open_orders(
+        ctx: Context<InitOpenOrders>,
+        side: Side,
+        max_orders: u8,
+    ) -> Result<()> {
+        instructions::init_open_orders(ctx, side, max_orders)
 
         // TODO Just update ctx.accounts.auction with relevant values
 
