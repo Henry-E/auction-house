@@ -180,69 +180,69 @@ pub struct NewEncryptedOrder<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-#[derive(Accounts)]
-pub struct NewOrder<'info> {
-    pub user: Signer<'info>,
-    // Program Accounts
-    #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bump,
-    )]
-    pub auction: Box<Account<'info, Auction>>,
-    #[account(
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = open_orders.bump,
-        mut
-    )]
-    pub open_orders: Box<Account<'info, OpenOrders>>,
-    // AOB Accounts
-    #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.market_state,
-    )]
-    pub market_state: Account<'info, MarketState>,
-    /// CHECK: This should be owned by the program
-    #[account(
-        address = Pubkey::new_from_array(market_state.event_queue),
-        owner = crate::ID,
-        mut
-    )]
-    pub event_queue: UncheckedAccount<'info>,
-    /// CHECK: This should be owned by the program
-    #[account(
-        address = Pubkey::new_from_array(market_state.bids),
-        owner = crate::ID,
-        mut
-    )]
-    pub bid_queue: UncheckedAccount<'info>,
-    /// CHECK: This should be owned by the program
-    #[account(
-        address = Pubkey::new_from_array(market_state.asks),
-        owner = crate::ID,
-        mut
-    )]
-    pub ask_queue: UncheckedAccount<'info>,
-    // Token accounts
-    #[account(
-        constraint = user_token.owner == user.key(),
-        mut
-    )]
-    pub user_token: Account<'info, TokenAccount>,
-    #[account(
-        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.quote_vault,
-        mut
-    )]
-    pub quote_vault: Account<'info, TokenAccount>,
-    #[account(
-        seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.base_vault,
-        mut
-    )]
-    pub base_vault: Account<'info, TokenAccount>,
-    // Programs
-    pub token_program: Program<'info, Token>,
-}
+// #[derive(Accounts)]
+// pub struct NewOrder<'info> {
+//     pub user: Signer<'info>,
+//     // Program Accounts
+//     #[account(
+//         seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump = auction.bump,
+//     )]
+//     pub auction: Box<Account<'info, Auction>>,
+//     #[account(
+//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump = open_orders.bump,
+//         mut
+//     )]
+//     pub open_orders: Box<Account<'info, OpenOrders>>,
+//     // AOB Accounts
+//     #[account(
+//         seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump = auction.bumps.market_state,
+//     )]
+//     pub market_state: Account<'info, MarketState>,
+//     /// CHECK: This should be owned by the program
+//     #[account(
+//         address = Pubkey::new_from_array(market_state.event_queue),
+//         owner = crate::ID,
+//         mut
+//     )]
+//     pub event_queue: UncheckedAccount<'info>,
+//     /// CHECK: This should be owned by the program
+//     #[account(
+//         address = Pubkey::new_from_array(market_state.bids),
+//         owner = crate::ID,
+//         mut
+//     )]
+//     pub bid_queue: UncheckedAccount<'info>,
+//     /// CHECK: This should be owned by the program
+//     #[account(
+//         address = Pubkey::new_from_array(market_state.asks),
+//         owner = crate::ID,
+//         mut
+//     )]
+//     pub ask_queue: UncheckedAccount<'info>,
+//     // Token accounts
+//     #[account(
+//         constraint = user_token.owner == user.key(),
+//         mut
+//     )]
+//     pub user_token: Account<'info, TokenAccount>,
+//     #[account(
+//         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump = auction.bumps.quote_vault,
+//         mut
+//     )]
+//     pub quote_vault: Account<'info, TokenAccount>,
+//     #[account(
+//         seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         bump = auction.bumps.base_vault,
+//         mut
+//     )]
+//     pub base_vault: Account<'info, TokenAccount>,
+//     // Programs
+//     pub token_program: Program<'info, Token>,
+// }
 
 #[derive(Accounts)]
 pub struct DecryptOrder<'info> {

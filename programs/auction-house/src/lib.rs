@@ -59,8 +59,9 @@ pub mod auction_house {
         // Ok(())
     }
 
-    pub fn new_order(_ctx: Context<NewOrder>) -> Result<()> {
-        Err(error!(CustomErrors::NotImplemented))
+    pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) -> Result<()> {
+        instructions::new_order(ctx, limit_price, max_base_qty)
+        // Err(error!(CustomErrors::NotImplemented))
 
         // TODO
         // load the orderbook

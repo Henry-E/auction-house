@@ -38,4 +38,12 @@ pub enum CustomErrors {
     BidOrAskOrdersAreFinished,
     #[msg("Max orders value is either too high or too low, min 1 max 8")]
     MaxOrdersValueIsInvalid,
+    #[msg("Can only place encrypted orders on this side of the book")]
+    EncryptedOrdersOnlyOnThisSide,
+    #[msg("Limit price must be a multiple of the assigned tick size")]
+    LimitPriceNotAMultipleOfTickSize,
+    #[msg("Max base order size is below the minimum")]
+    OrderBelowMinBaseOrderSize,
+    #[msg("Open orders account already has the maximum amount of orders")]
+    TooManyOrders,
 }

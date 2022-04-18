@@ -5,7 +5,7 @@ use bytemuck::try_from_bytes;
 use std::ops::Deref;
 
 // use agnostic_orderbook;
-use agnostic_orderbook::state::Side;
+use agnostic_orderbook::state::{SelfTradeBehavior, Side};
 
 use crate::error::CustomErrors;
 
