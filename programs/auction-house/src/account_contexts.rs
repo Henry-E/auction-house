@@ -182,7 +182,7 @@ pub struct NewEncryptedOrder<'info> {
 }
 
 impl NewEncryptedOrder<'_> {
-    pub fn access_control(&self, public_key: &Vec<u8>) -> Result<()> {
+    pub fn access_control_new_encrypted_order(&self, public_key: &Vec<u8>) -> Result<()> {
         let clock = Clock::get()?;
         if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
             || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
@@ -203,6 +203,29 @@ impl NewEncryptedOrder<'_> {
         if !self.open_orders.public_key.is_empty() && self.open_orders.public_key != *public_key {
             return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch))
         }
+        Ok(())
+    }
+
+    pub fn access_control_cancel_encrypted_order(&self, order_idx: usize) -> Result<()> {
+        let clock = Clock::get()?;
+        // TODO
+        // Add an access control that would allow encrypted orders to be cancelled after the decryption period
+        if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
+            || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
+        {
+            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
+        }
+
+        if (!self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
+            || (!self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
+        {
+            return Err(error!(CustomErrors::UnencryptedOrdersOnlyOnThisSide));
+        }
+
+        if self.open_orders.num_orders <= order_idx as u8 {
+            return Err(error!(CustomErrors::OrderIdxNotValid))
+        }
+
         Ok(())
     }
 }

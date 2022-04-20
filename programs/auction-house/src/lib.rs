@@ -116,7 +116,7 @@ pub mod auction_house {
         // Ok(())
     }
 
-    #[access_control(ctx.accounts.access_control(&public_key))]
+    #[access_control(ctx.accounts.access_control_new_encrypted_order(&public_key))]
     pub fn new_encrypted_order(ctx: Context<NewEncryptedOrder>, token_qty: u64, public_key: Vec<u8>, nonce: Vec<u8>, cipher_text: Vec<u8>) -> Result<()> {
 
         let open_orders = &mut *ctx.accounts.open_orders;
@@ -158,21 +158,33 @@ pub mod auction_house {
         // Ok(())
     }
 
-    pub fn cancel_encrypted_order(_ctx: Context<NewEncryptedOrder>) -> Result<()> {
+    #[access_control(ctx.accounts.access_control_cancel_encrypted_order(order_idx))]
+    pub fn cancel_encrypted_order(ctx: Context<NewEncryptedOrder>, order_idx: usize) -> Result<()> {
+
+        let open_orders = &mut *ctx.accounts.open_orders;
+        let this_order = open_orders.encrypted_orders.remove(order_idx);
+        open_orders.num_orders -= 1;
+
+        match open_orders.side {
+            Side::Ask => {
+                // TODO transfer total_base_qty worth of base currency from base vault to user's account
+
+                open_orders.base_token_locked = open_orders
+                    .base_token_locked
+                    .checked_sub(this_order.token_qty)
+                    .unwrap();
+            }
+            Side::Bid => {
+                // TODO transfer total_quote_qty worth of quote currency from quote vault to user's account
+
+                open_orders.quote_token_locked = open_orders
+                    .quote_token_locked
+                    .checked_sub(this_order.token_qty)
+                    .unwrap();
+            }
+        }
+
         Err(error!(CustomErrors::NotImplemented))
-
-        // TODO
-        // Args
-        // cipher text + nonce of order to cancel
-        // Access control
-        // Bid / Ask time hasn't finished
-        // Function
-        // Loop over the encrypted orders to find the cipher text that matches the input
-        // Error if the order isn't found. There's a special - end of loop call function option
-        // Match the side of the account
-        // Reduce the order's token_locked from base/quote token locked
-        // Transfer token_locked quantity of tokens base /quote token vault
-
         // Ok(())
     }
 
