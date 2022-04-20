@@ -40,10 +40,16 @@ pub enum CustomErrors {
     MaxOrdersValueIsInvalid,
     #[msg("Can only place encrypted orders on this side of the book")]
     EncryptedOrdersOnlyOnThisSide,
+    #[msg("Can only place regular (unencrypted) orders on this side of the book")]
+    UnencryptedOrdersOnlyOnThisSide,
     #[msg("Limit price must be a multiple of the assigned tick size")]
     LimitPriceNotAMultipleOfTickSize,
     #[msg("Max base order size is below the minimum")]
     OrderBelowMinBaseOrderSize,
     #[msg("Open orders account already has the maximum amount of orders")]
     TooManyOrders,
+    #[msg("The public key stored in this open orders account doesn't match the public key passed in")]
+    EncryptionPubkeysDoNotMatch,
+    #[msg("An identical encrypted order found in the open orders account")]
+    IdenticalEncryptedOrderFound,
 }

@@ -1,3 +1,4 @@
+use agnostic_orderbook::state::Side;
 use anchor_lang::prelude::*;
 
 use crate::account_data::*;
@@ -178,6 +179,32 @@ pub struct NewEncryptedOrder<'info> {
     pub base_vault: Account<'info, TokenAccount>,
     // Programs
     pub token_program: Program<'info, Token>,
+}
+
+impl NewEncryptedOrder<'_> {
+    pub fn access_control(&self, public_key: &Vec<u8>) -> Result<()> {
+        let clock = Clock::get()?;
+        if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
+            || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
+        {
+            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
+        }
+
+        if (!self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
+            || (!self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
+        {
+            return Err(error!(CustomErrors::UnencryptedOrdersOnlyOnThisSide));
+        }
+
+        if self.open_orders.num_orders == self.open_orders.max_orders {
+            return Err(error!(CustomErrors::TooManyOrders));
+        }
+
+        if !self.open_orders.public_key.is_empty() && self.open_orders.public_key != *public_key {
+            return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch))
+        }
+        Ok(())
+    }
 }
 
 // #[derive(Accounts)]

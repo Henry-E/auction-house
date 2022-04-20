@@ -114,7 +114,7 @@ impl OpenOrders {
 pub struct EncryptedOrder {
     pub nonce: Vec<u8>,
     pub cipher_text: Vec<u8>,
-    pub token_locked: u64,
+    pub token_qty: u64,
 }
 
 #[account]

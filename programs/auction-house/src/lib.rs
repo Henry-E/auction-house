@@ -116,25 +116,45 @@ pub mod auction_house {
         // Ok(())
     }
 
-    pub fn new_encrypted_order(_ctx: Context<NewEncryptedOrder>) -> Result<()> {
+    #[access_control(ctx.accounts.access_control(&public_key))]
+    pub fn new_encrypted_order(ctx: Context<NewEncryptedOrder>, token_qty: u64, public_key: Vec<u8>, nonce: Vec<u8>, cipher_text: Vec<u8>) -> Result<()> {
+
+        let open_orders = &mut *ctx.accounts.open_orders;
+        if open_orders.public_key.is_empty() {
+            open_orders.public_key = public_key;
+        }
+        // TODO move to access control probably, not sure about reference stuff for the vars nonce and cipher text
+        if open_orders.encrypted_orders.iter().any(|order| order.nonce == nonce && order.cipher_text == cipher_text) {
+            return Err(error!(CustomErrors::IdenticalEncryptedOrderFound));
+        }
+        let this_order = EncryptedOrder {
+            nonce,
+            cipher_text,
+            token_qty
+        };
+        open_orders.encrypted_orders.push(this_order);
+        open_orders.num_orders += 1;
+
+        match open_orders.side {
+            Side::Ask => {
+                // TODO transfer token quantity worth of base currency from the user's account
+
+                open_orders.base_token_locked = open_orders
+                    .base_token_locked
+                    .checked_add(token_qty)
+                    .unwrap();
+            }
+            Side::Bid => {
+                // TODO transfer token quantity worth of quote currency from the user's account
+
+                open_orders.quote_token_locked = open_orders
+                    .quote_token_locked
+                    .checked_add(token_qty)
+                    .unwrap();
+            }
+        }
+
         Err(error!(CustomErrors::NotImplemented))
-
-        // TODO
-        // Args
-        // Public key
-        // Encryption values - nonce + cipher text
-        // quote / base token quantity
-        // Access control
-        // Check the public key is correct if has already been added
-        // Function
-        // Check if public key hasn't already been added and add it if not
-        // Create an EncryptedOrder struct using the nonce, cipher text and token quantity
-        // Check that the same Encrypted Order struct isn't already in the vector
-        // Add it to the encrypted orders vector
-        // Match the side of the account
-        // Transfer over the token amount of currency to the base / quote vault
-        // Add the values to the base / quote locked
-
         // Ok(())
     }
 
