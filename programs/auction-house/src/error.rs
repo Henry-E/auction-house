@@ -50,7 +50,9 @@ pub enum CustomErrors {
     OrderBelowMinBaseOrderSize,
     #[msg("Open orders account already has the maximum amount of orders")]
     TooManyOrders,
-    #[msg("The public key stored in this open orders account doesn't match the public key passed in")]
+    #[msg(
+        "The public key stored in this open orders account doesn't match the public key passed in"
+    )]
     EncryptionPubkeysDoNotMatch,
     #[msg("An identical encrypted order found in the open orders account")]
     IdenticalEncryptedOrderFound,

@@ -201,7 +201,7 @@ impl NewEncryptedOrder<'_> {
         }
 
         if !self.open_orders.public_key.is_empty() && self.open_orders.public_key != *public_key {
-            return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch))
+            return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch));
         }
         Ok(())
     }
@@ -223,7 +223,7 @@ impl NewEncryptedOrder<'_> {
         }
 
         if self.open_orders.num_orders <= order_idx as u8 {
-            return Err(error!(CustomErrors::OrderIdxNotValid))
+            return Err(error!(CustomErrors::OrderIdxNotValid));
         }
 
         Ok(())
@@ -367,6 +367,12 @@ pub struct CalculateClearingPrice<'info> {
         owner = crate::ID,
     )]
     pub ask_queue: UncheckedAccount<'info>,
+}
+
+impl DecryptOrder<'_> {
+    pub fn access_control(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
