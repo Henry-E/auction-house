@@ -56,4 +56,6 @@ pub enum CustomErrors {
     EncryptionPubkeysDoNotMatch,
     #[msg("An identical encrypted order found in the open orders account")]
     IdenticalEncryptedOrderFound,
+    #[msg("Not enough tokens provided for the order requested. For simplicity of processing, this prevents all encrypted orders in the open orders account being processed. You can cancel the encrypted orders after the decryption period has finished.")]
+    InsufficientTokensForOrder,
 }

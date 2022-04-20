@@ -1,11 +1,17 @@
 use anchor_lang::prelude::*;
 
 use agnostic_orderbook::critbit::LeafNode;
+use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::{
     get_side_from_order_id, Event, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN,
 };
 use agnostic_orderbook::utils::{fp32_div, fp32_mul};
+
+use xsalsa20poly1305::{
+    aead::{Aead, NewAead},
+    Nonce, XSalsa20Poly1305,
+};
 
 use std::cmp;
 use std::convert::TryInto;
@@ -196,28 +202,98 @@ pub mod auction_house {
 
     #[access_control(ctx.accounts.access_control())]
     pub fn decrypt_order(ctx: Context<DecryptOrder>, secret_key: Vec<u8>) -> Result<()> {
+        // Load up all the AOB accounts
+        let mut order_book = OrderBookState::new_safe(
+            &ctx.accounts.bid_queue.to_account_info(),
+            &ctx.accounts.ask_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+            CALLBACK_ID_LEN,
+        )?;
+        let header = {
+            let mut event_queue_data: &[u8] =
+                &ctx.accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
+            EventQueueHeader::deserialize(&mut event_queue_data)
+                .unwrap()
+                .check()?
+        };
+        let mut event_queue = EventQueue::new_safe(
+            header,
+            &ctx.accounts.event_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+        )?;
+
+        let key = xsalsa20poly1305::Key::from_slice(secret_key.as_slice());
+        let cypher = XSalsa20Poly1305::new(key);
+        
+        let open_orders = &mut *ctx.accounts.open_orders;
+        for encrypted_order in open_orders.encrypted_orders.clone().iter() {
+           let nonce = Nonce::from_slice(encrypted_order.nonce.as_slice());
+           // TODO Make sure that we're encrypting price and qty correctly on client side
+           let price_and_quantity = cypher.decrypt(nonce, encrypted_order.cipher_text.as_slice()).unwrap();
+           let limit_price = u64::from_le_bytes(price_and_quantity[0..8].try_into().unwrap());
+           let max_base_qty = u64::from_le_bytes(price_and_quantity[8..16].try_into().unwrap());
+           let max_quote_qty = fp32_mul(max_base_qty, limit_price);
+           // If any order triggers an error, then none of the orders will be processed.
+           // TODO possibly put these in helper functions
+           if limit_price % ctx.accounts.auction.tick_size != 0 {
+                return Err(error!(CustomErrors::LimitPriceNotAMultipleOfTickSize));
+           }
+           if max_base_qty < ctx.accounts.auction.min_base_order_size {
+                return Err(error!(CustomErrors::OrderBelowMinBaseOrderSize));
+           }
+           match open_orders.side {
+               Side::Ask => {
+                   if encrypted_order.token_qty < max_base_qty {
+                        return Err(error!(CustomErrors::InsufficientTokensForOrder));
+                   }
+               }
+               Side::Bid => {
+                   if encrypted_order.token_qty < max_quote_qty {
+                        return Err(error!(CustomErrors::InsufficientTokensForOrder));
+                   }
+                   let remaining_tokens = max_quote_qty.checked_sub(encrypted_order.token_qty).unwrap();
+                   if remaining_tokens > 0 {
+                        open_orders.quote_token_free = open_orders
+                            .quote_token_free
+                            .checked_add(remaining_tokens)
+                            .unwrap();
+                        open_orders.quote_token_locked = open_orders
+                            .quote_token_locked
+                            .checked_sub(remaining_tokens)
+                            .unwrap();
+                   }
+               }
+           }
+           // Place a new order
+           let params = Params {
+                max_base_qty,
+                max_quote_qty,
+                limit_price,
+                side: open_orders.side,
+                callback_info: Vec::new(),
+                post_only: true,
+                post_allowed: true,
+                // self trade behaviour is ignored, this is a vestigial argument
+                self_trade_behavior: agnostic_orderbook::state::SelfTradeBehavior::DecrementTake,
+                match_limit: 1,
+            };
+        
+            let order_summary = order_book
+                .new_order(
+                    params,
+                    &mut event_queue,
+                    ctx.accounts.auction.min_base_order_size,
+                )
+                .unwrap();
+        
+            open_orders
+                .orders
+                .push(order_summary.posted_order_id.unwrap());
+        }
+
+        open_orders.encrypted_orders = Vec::new();
+
         Err(error!(CustomErrors::NotImplemented))
-
-        // TODO
-        // Args
-        // Secret key
-        // Access control
-        // 	After order period has finished
-        // 	Before decryption period has finished
-        // Function
-        // Iterate over all the encrypted orders
-        // Decrypt the price and quantity of each order from the cipher text
-        // 	Validate the decrypted values
-        // 	Price lots
-        // 	Quantity lots
-        // 	Sufficient quote/base tokens locked
-        // 	Anything else that is validated by unencrypted order
-        // 	If this is a bid and price * quantity < locked tokens
-        // 	reduce remaining amount from quote tokens locked
-        // 	Increase the quote token free by remaining amount
-        // 	Post the order to the AOB, same as in new uncencrypted order, and add the order id to orders
-
-        // Ok(())
     }
 
     pub fn calculate_clearing_price(

@@ -371,7 +371,13 @@ pub struct CalculateClearingPrice<'info> {
 
 impl DecryptOrder<'_> {
     pub fn access_control(&self) -> Result<()> {
-        Ok(())
+        // TODO
+        // Add check that order time has finished
+        // Add check that decryption time has not finished
+        // Add check that this side of the order book allows encrypted orders
+
+        Err(error!(CustomErrors::NotImplemented))
+        // Ok(())
     }
 }
 
