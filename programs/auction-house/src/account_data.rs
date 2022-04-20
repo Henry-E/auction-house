@@ -97,6 +97,19 @@ pub struct OpenOrders {
     pub orders: Vec<u128>,
 }
 
+impl OpenOrders {
+    fn find_order_index(&self, order_id: u128) -> Result<(usize)> {
+        let idx = self
+            .orders
+            .iter()
+            .enumerate()
+            .find(|(_, this_order)| **this_order == order_id)
+            .ok_or(error!(CustomErrors::OrderIdNotFound))?
+            .0;
+        Ok(idx)
+    }
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct EncryptedOrder {
     pub nonce: Vec<u8>,
