@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use agnostic_orderbook::critbit::LeafNode;
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::{
-    Event, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN,
+    Event, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN, get_side_from_order_id,
 };
 use agnostic_orderbook::utils::{fp32_div, fp32_mul};
 
@@ -26,6 +26,7 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod auction_house {
+
     use super::*;
 
     pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
@@ -53,40 +54,65 @@ pub mod auction_house {
         max_orders: u8,
     ) -> Result<()> {
         instructions::init_open_orders(ctx, side, max_orders)
-
-        // TODO Just update ctx.accounts.auction with relevant values
-
-        // Ok(())
     }
 
+    #[access_control(ctx.accounts.access_control_new_order(limit_price, max_base_qty))]
     pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) -> Result<()> {
-        instructions::new_order(ctx, limit_price, max_base_qty)
-        // Err(error!(CustomErrors::NotImplemented))
+        instructions::new_order(ctx, limit_price, max_base_qty)?;
 
-        // TODO
-        // load the orderbook
-        // load the event queue
-        // Put together new_order::params
-        // Send the new order
-        // Update relevant values on the open orders account
-        // order id, quote token locked, base token locked
-
-        // Ok(())
-    }
-
-    pub fn cancel_order(_ctx: Context<NewOrder>) -> Result<()> {
         Err(error!(CustomErrors::NotImplemented))
 
         // TODO
-        // Any non-aob accounts we already have loaded up
-        // Check the order_id is in the vector, just do a loop over the order_ids vector, it's no big deal
-        // Load the aob market state
-        // Load the orderbook
-        // Get the slab, remove order_id by key, get the order details from the node
-        // Match the side of the order
-        // Update user account quote/base tokens locked/free
-        // Delete the order_id from vector of open orders
+        // Add the token transfer CPI calls 
+    }
 
+    #[access_control(ctx.accounts.access_control_cancel_order(order_id))]
+    pub fn cancel_order(ctx: Context<NewOrder>, order_id: u128) -> Result<()> {
+        // TODO
+        // Move this to its own function & file when we're on a bigger monitor
+
+        let mut order_book = OrderBookState::new_safe(
+            &ctx.accounts.bid_queue.to_account_info(),
+            &ctx.accounts.ask_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+            CALLBACK_ID_LEN,
+        )?;
+        let slab = order_book.get_tree(get_side_from_order_id(order_id));
+        let (node, _) = slab
+            .remove_by_key(order_id)
+            .ok_or(error!(CustomErrors::OrderIdNotFound))?;
+        let leaf_node = node.as_leaf().unwrap();
+        let total_base_qty = leaf_node.base_quantity;
+        let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price());
+        order_book.commit_changes();
+
+        let open_orders = &mut *ctx.accounts.open_orders;
+        let order_idx = open_orders.find_order_index(order_id)?;
+        open_orders.orders.remove(order_idx);
+        open_orders.num_orders -= 1;
+
+        match open_orders.side {
+            Side::Ask => {
+                // TODO transfer total_base_qty worth of base currency from base vault to user's account
+
+                open_orders.base_token_locked = open_orders
+                    .base_token_locked
+                    .checked_sub(total_base_qty)
+                    .unwrap();
+
+            }
+            Side::Bid => {
+                // TODO transfer total_quote_qty worth of quote currency from quote vault to user's account
+
+                open_orders.quote_token_locked = open_orders
+                    .quote_token_locked
+                    .checked_sub(total_quote_qty)
+                    .unwrap();
+
+            }
+        }
+        
+        Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }
 
@@ -161,17 +187,17 @@ pub mod auction_house {
     ) -> Result<()> {
         let auction = &mut ctx.accounts.auction;
 
-        let mut orderbook = OrderBookState::new_safe(
+        let mut  order_book = OrderBookState::new_safe(
             &ctx.accounts.bid_queue.to_account_info(),
             &ctx.accounts.ask_queue.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
 
-        let bid_slab = orderbook.get_tree(Side::Bid);
+        let bid_slab =  order_book.get_tree(Side::Bid);
         let mut bid_iter = bid_slab.clone().into_iter(false);
         let mut current_bid: LeafNode;
-        let ask_slab = orderbook.get_tree(Side::Ask);
+        let ask_slab =  order_book.get_tree(Side::Ask);
         let mut ask_iter = ask_slab.clone().into_iter(true);
         let mut current_ask: LeafNode;
 
@@ -291,7 +317,7 @@ pub mod auction_house {
             CALLBACK_INFO_LEN,
         )?;
 
-        let mut orderbook = OrderBookState::new_safe(
+        let mut  order_book = OrderBookState::new_safe(
             &ctx.accounts.bid_queue.to_account_info(),
             &ctx.accounts.ask_queue.to_account_info(),
             CALLBACK_INFO_LEN,
@@ -300,7 +326,7 @@ pub mod auction_house {
 
         // Process all the bids first, then move onto the asks
         let side: Side;
-        if orderbook.bids_is_empty() {
+        if  order_book.bids_is_empty() {
             side = Side::Ask;
         } else {
             side = Side::Bid;
@@ -308,14 +334,14 @@ pub mod auction_house {
 
         for _ in 0..limit {
             // bbo -> best bid or offer
-            let bbo_key = match orderbook.find_bbo(side) {
+            let bbo_key = match  order_book.find_bbo(side) {
                 None => {
                     // Queue is empty
                     break;
                 }
                 Some(key) => key,
             };
-            let bbo_node = *orderbook
+            let bbo_node = * order_book
                 .get_tree(side)
                 .get_node(bbo_key)
                 .unwrap()
@@ -329,7 +355,7 @@ pub mod auction_house {
                         let quote_size = fp32_mul(fill_size, auction.clearing_price);
                         let order_fill = Event::Fill {
                             taker_side: side.opposite(),
-                            maker_callback_info: orderbook
+                            maker_callback_info:  order_book
                                 .get_tree(side)
                                 .get_callback_info(bbo_node.callback_info_pt as usize)
                                 .to_owned(),
@@ -350,7 +376,7 @@ pub mod auction_house {
                         delete: true,
                         order_id: bbo_node.order_id(),
                         base_size: out_size,
-                        callback_info: orderbook
+                        callback_info:  order_book
                             .get_tree(side)
                             .get_callback_info(bbo_node.callback_info_pt as usize)
                             .to_owned(),
@@ -358,7 +384,7 @@ pub mod auction_house {
                     event_queue
                         .push_back(order_out)
                         .map_err(|_| error!(CustomErrors::AobEventQueueFull))?;
-                    orderbook
+                     order_book
                         .get_tree(side)
                         .remove_by_key(bbo_node.key)
                         .unwrap();
@@ -370,7 +396,7 @@ pub mod auction_house {
                         let quote_size = fp32_mul(fill_size, auction.clearing_price);
                         let order_fill = Event::Fill {
                             taker_side: side.opposite(),
-                            maker_callback_info: orderbook
+                            maker_callback_info:  order_book
                                 .get_tree(side)
                                 .get_callback_info(bbo_node.callback_info_pt as usize)
                                 .to_owned(),
@@ -401,7 +427,7 @@ pub mod auction_house {
                         delete: true,
                         order_id: bbo_node.order_id(),
                         base_size: out_size,
-                        callback_info: orderbook
+                        callback_info:  order_book
                             .get_tree(side)
                             .get_callback_info(bbo_node.callback_info_pt as usize)
                             .to_owned(),
@@ -409,7 +435,7 @@ pub mod auction_house {
                     event_queue
                         .push_back(order_out)
                         .map_err(|_| error!(CustomErrors::AobEventQueueFull))?;
-                    orderbook
+                     order_book
                         .get_tree(side)
                         .remove_by_key(bbo_node.key)
                         .unwrap();
@@ -417,7 +443,7 @@ pub mod auction_house {
             }
         }
 
-        orderbook.commit_changes();
+         order_book.commit_changes();
 
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())

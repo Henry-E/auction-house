@@ -79,7 +79,7 @@ pub struct NewOrder<'info> {
 }
 
 impl NewOrder<'_> {
-    pub fn access_control(&self, limit_price: u64, max_base_qty: u64) -> Result<()> {
+    pub fn access_control_new_order(&self, limit_price: u64, max_base_qty: u64) -> Result<()> {
         let clock = Clock::get()?;
         if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
             || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
@@ -104,6 +104,27 @@ impl NewOrder<'_> {
         if self.open_orders.num_orders == self.open_orders.max_orders {
             return Err(error!(CustomErrors::TooManyOrders));
         }
+
+        Ok(())
+    }
+
+    // TODO move this to cancel_order.rs
+    pub fn access_control_cancel_order(&self, order_id: u128) -> Result<()> {
+        let clock = Clock::get()?;
+        if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
+            || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
+        {
+            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
+        }
+
+        if (self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
+            || (self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
+        {
+            return Err(error!(CustomErrors::EncryptedOrdersOnlyOnThisSide));
+        }
+
+        // Validate the order id is present, will error inside function if not
+        let _ = self.open_orders.find_order_index(order_id)?;
 
         Ok(())
     }
@@ -154,35 +175,27 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
         .unwrap();
 
     let open_orders = &mut *ctx.accounts.open_orders;
+    open_orders
+        .orders
+        .push(order_summary.posted_order_id.unwrap());
+    open_orders.num_orders += 1;
 
     match open_orders.side {
         Side::Ask => {
-            // TODO transfer max_base_qty worth of base currency from the user's account
-
-            open_orders
-                .orders
-                .push(order_summary.posted_order_id.unwrap());
+            // TODO transfer total_base_qty worth of base currency from the user's account
 
             open_orders.base_token_locked = open_orders
                 .base_token_locked
                 .checked_add(order_summary.total_base_qty)
                 .unwrap();
-
-            open_orders.num_orders += 1;
         }
         Side::Bid => {
-            // TODO transfer max_quote_qty worth of quote currency from the user's account
-
-            open_orders
-                .orders
-                .push(order_summary.posted_order_id.unwrap());
+            // TODO transfer total_quote_qty worth of quote currency from the user's account
 
             open_orders.quote_token_locked = open_orders
                 .quote_token_locked
                 .checked_add(order_summary.total_quote_qty)
                 .unwrap();
-
-            open_orders.num_orders += 1;
         }
     }
 

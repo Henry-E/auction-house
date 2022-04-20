@@ -98,7 +98,7 @@ pub struct OpenOrders {
 }
 
 impl OpenOrders {
-    fn find_order_index(&self, order_id: u128) -> Result<(usize)> {
+    pub fn find_order_index(&self, order_id: u128) -> Result<(usize)> {
         let idx = self
             .orders
             .iter()
