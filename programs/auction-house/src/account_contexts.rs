@@ -1,4 +1,4 @@
-use agnostic_orderbook::state::Side;
+use agnostic_orderbook::state::{EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN};
 use anchor_lang::prelude::*;
 
 use crate::account_data::*;
@@ -529,6 +529,19 @@ pub struct SettleAndCloseOpenOrders<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+impl SettleAndCloseOpenOrders<'_> {
+    pub fn access_control(&self) -> Result<()> {
+        if self.open_orders.num_orders > 0 {
+            return Err(error!(CustomErrors::OpenOrdersHasOpenOrders));
+        }
+        // Technically a redundant check but totally worth making sure
+        if self.open_orders.quote_token_locked != 0 || self.open_orders.base_token_locked != 0 {
+            return Err(error!(CustomErrors::OpenOrdersHasLockedTokens));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Accounts)]
 pub struct CloseAobAccounts<'info> {
     // Technically doesn't need to be a signer for this function
@@ -545,7 +558,6 @@ pub struct CloseAobAccounts<'info> {
         seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.market_state,
         mut,
-        close = auctioneer,
     )]
     pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
@@ -569,4 +581,35 @@ pub struct CloseAobAccounts<'info> {
         mut
     )]
     pub ask_queue: UncheckedAccount<'info>,
+}
+
+impl CloseAobAccounts<'_> {
+    pub fn access_control(&self) -> Result<()> {
+        if !self.auction.has_found_clearing_price {
+            return Err(error!(CustomErrors::NoClearingPriceYet));
+        }
+
+        let order_book = OrderBookState::new_safe(
+            &self.bid_queue.to_account_info(),
+            &self.ask_queue.to_account_info(),
+            CALLBACK_INFO_LEN,
+            CALLBACK_ID_LEN,
+        )?;
+        if !order_book.is_empty() {
+            return Err(error!(CustomErrors::OrderBookNotEmpty));
+        }
+
+        let event_queue_header = {
+            let mut event_queue_data: &[u8] =
+                &self.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
+            EventQueueHeader::deserialize(&mut event_queue_data)
+                .unwrap()
+                .check()?
+        };
+        if event_queue_header.count > 0 {
+            return Err(error!(CustomErrors::EventQueueNotEmpty));
+        }
+
+        Ok(())
+    }
 }

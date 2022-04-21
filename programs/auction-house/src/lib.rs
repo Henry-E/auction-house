@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 
 use agnostic_orderbook::critbit::LeafNode;
-use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::orderbook::OrderBookState;
+use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::state::{
     get_side_from_order_id, Event, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN,
 };
@@ -224,35 +224,39 @@ pub mod auction_house {
 
         let key = xsalsa20poly1305::Key::from_slice(secret_key.as_slice());
         let cypher = XSalsa20Poly1305::new(key);
-        
+
         let open_orders = &mut *ctx.accounts.open_orders;
         for encrypted_order in open_orders.encrypted_orders.clone().iter() {
-           let nonce = Nonce::from_slice(encrypted_order.nonce.as_slice());
-           // TODO Make sure that we're encrypting price and qty correctly on client side
-           let price_and_quantity = cypher.decrypt(nonce, encrypted_order.cipher_text.as_slice()).unwrap();
-           let limit_price = u64::from_le_bytes(price_and_quantity[0..8].try_into().unwrap());
-           let max_base_qty = u64::from_le_bytes(price_and_quantity[8..16].try_into().unwrap());
-           let max_quote_qty = fp32_mul(max_base_qty, limit_price);
-           // If any order triggers an error, then none of the orders will be processed.
-           // TODO possibly put these in helper functions
-           if limit_price % ctx.accounts.auction.tick_size != 0 {
+            let nonce = Nonce::from_slice(encrypted_order.nonce.as_slice());
+            // TODO Make sure that we're encrypting price and qty correctly on client side
+            let price_and_quantity = cypher
+                .decrypt(nonce, encrypted_order.cipher_text.as_slice())
+                .unwrap();
+            let limit_price = u64::from_le_bytes(price_and_quantity[0..8].try_into().unwrap());
+            let max_base_qty = u64::from_le_bytes(price_and_quantity[8..16].try_into().unwrap());
+            let max_quote_qty = fp32_mul(max_base_qty, limit_price);
+            // If any order triggers an error, then none of the orders will be processed.
+            // TODO possibly put these in helper functions
+            if limit_price % ctx.accounts.auction.tick_size != 0 {
                 return Err(error!(CustomErrors::LimitPriceNotAMultipleOfTickSize));
-           }
-           if max_base_qty < ctx.accounts.auction.min_base_order_size {
+            }
+            if max_base_qty < ctx.accounts.auction.min_base_order_size {
                 return Err(error!(CustomErrors::OrderBelowMinBaseOrderSize));
-           }
-           match open_orders.side {
-               Side::Ask => {
-                   if encrypted_order.token_qty < max_base_qty {
+            }
+            match open_orders.side {
+                Side::Ask => {
+                    if encrypted_order.token_qty < max_base_qty {
                         return Err(error!(CustomErrors::InsufficientTokensForOrder));
-                   }
-               }
-               Side::Bid => {
-                   if encrypted_order.token_qty < max_quote_qty {
+                    }
+                }
+                Side::Bid => {
+                    if encrypted_order.token_qty < max_quote_qty {
                         return Err(error!(CustomErrors::InsufficientTokensForOrder));
-                   }
-                   let remaining_tokens = max_quote_qty.checked_sub(encrypted_order.token_qty).unwrap();
-                   if remaining_tokens > 0 {
+                    }
+                    let remaining_tokens = max_quote_qty
+                        .checked_sub(encrypted_order.token_qty)
+                        .unwrap();
+                    if remaining_tokens > 0 {
                         open_orders.quote_token_free = open_orders
                             .quote_token_free
                             .checked_add(remaining_tokens)
@@ -261,11 +265,11 @@ pub mod auction_house {
                             .quote_token_locked
                             .checked_sub(remaining_tokens)
                             .unwrap();
-                   }
-               }
-           }
-           // Place a new order
-           let params = Params {
+                    }
+                }
+            }
+            // Place a new order
+            let params = Params {
                 max_base_qty,
                 max_quote_qty,
                 limit_price,
@@ -277,7 +281,7 @@ pub mod auction_house {
                 self_trade_behavior: agnostic_orderbook::state::SelfTradeBehavior::DecrementTake,
                 match_limit: 1,
             };
-        
+
             let order_summary = order_book
                 .new_order(
                     params,
@@ -285,7 +289,7 @@ pub mod auction_house {
                     ctx.accounts.auction.min_base_order_size,
                 )
                 .unwrap();
-        
+
             open_orders
                 .orders
                 .push(order_summary.posted_order_id.unwrap());
@@ -724,12 +728,47 @@ pub mod auction_house {
         // Ok(())
     }
 
-    pub fn settle_and_close_open_orders(_ctx: Context<SettleAndCloseOpenOrders>) -> Result<()> {
+    pub fn settle_and_close_open_orders(ctx: Context<SettleAndCloseOpenOrders>) -> Result<()> {
+        let open_orders = &mut *ctx.accounts.open_orders;
+
+        // This information + clearing price should be enough to display to the user after the auction
+        ctx.accounts.order_history.set_inner(OrderHistory {
+            bump: ctx.accounts.order_history.bump,
+            side: open_orders.side,
+            quote_amount_returned: open_orders.quote_token_free,
+            base_amount_returned: open_orders.base_token_free,
+        });
+
+        if open_orders.quote_token_free > 0 {
+            // TODO
+            // Transfer quote_token_free from vault to user
+        }
+        if open_orders.base_token_free > 0 {
+            // TODO
+            // Transfer base_token_free from vault to user
+        }
+
+        open_orders.quote_token_free = 0;
+        open_orders.base_token_free = 0;
+
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }
 
-    pub fn close_aob_accounts(_ctx: Context<CloseAobAccounts>) -> Result<()> {
+    pub fn close_aob_accounts(ctx: Context<CloseAobAccounts>) -> Result<()> {
+        let auctioneer_lamports = ctx.accounts.auctioneer.lamports();
+        **ctx.accounts.auctioneer.lamports.borrow_mut() = auctioneer_lamports
+            .checked_add(ctx.accounts.event_queue.lamports())
+            .unwrap()
+            .checked_add(ctx.accounts.bid_queue.lamports())
+            .unwrap()
+            .checked_add(ctx.accounts.ask_queue.lamports())
+            .unwrap();
+
+        **ctx.accounts.event_queue.lamports.borrow_mut() = 0;
+        **ctx.accounts.bid_queue.lamports.borrow_mut() = 0;
+        **ctx.accounts.ask_queue.lamports.borrow_mut() = 0;
+
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }

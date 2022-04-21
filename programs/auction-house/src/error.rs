@@ -58,4 +58,14 @@ pub enum CustomErrors {
     IdenticalEncryptedOrderFound,
     #[msg("Not enough tokens provided for the order requested. For simplicity of processing, this prevents all encrypted orders in the open orders account being processed. You can cancel the encrypted orders after the decryption period has finished.")]
     InsufficientTokensForOrder,
+    #[msg(
+        "Can't close an open orders account that has open orders, try cancelling all orders first"
+    )]
+    OpenOrdersHasOpenOrders,
+    #[msg("Can't close an open orders account that has locked tokens, try cancelling all orders first")]
+    OpenOrdersHasLockedTokens,
+    #[msg("Order book should be empty")]
+    OrderBookNotEmpty,
+    #[msg("Event queue should be empty")]
+    EventQueueNotEmpty,
 }

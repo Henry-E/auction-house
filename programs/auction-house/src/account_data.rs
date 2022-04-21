@@ -64,16 +64,6 @@ pub struct AobBumps {
     pub market_state: u8,
 }
 
-// #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-// pub struct InitAuctionArgs {
-//     pub start_time: i64,
-//     pub end_asks: i64,
-//     pub start_bids: i64,
-//     pub end_bids: i64,
-//     pub min_base_order_size: u64,
-//     pub tick_size: u64,
-// }
-
 #[account]
 #[derive(Default)]
 pub struct OpenOrders {
