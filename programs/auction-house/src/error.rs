@@ -37,7 +37,9 @@ pub enum CustomErrors {
     #[msg("Order index is invalid")]
     OrderIdxNotValid,
     #[msg("Time for placing bid or ask orders has finished")]
-    BidOrAskOrdersAreFinished,
+    OrderPhaseIsOver,
+    #[msg("Time for placing bid or ask orders hasn't started")]
+    OrderPhaseHasNotStarted,
     #[msg("Max orders value is either too high or too low, min 1 max 8")]
     MaxOrdersValueIsInvalid,
     #[msg("Can only place encrypted orders on this side of the book")]

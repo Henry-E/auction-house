@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::token::{Token, TokenAccount};
 
+use crate::access_controls::*;
 use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
@@ -19,19 +20,19 @@ pub struct NewOrder<'info> {
     pub user: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = open_orders.bump,
         mut
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts
     #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.market_state,
     )]
     pub market_state: Box<Account<'info, MarketState>>,
@@ -63,13 +64,13 @@ pub struct NewOrder<'info> {
     )]
     pub user_token: Account<'info, TokenAccount>,
     #[account(
-        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
         mut
     )]
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
-        seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.base_vault,
         mut
     )]
@@ -81,17 +82,21 @@ pub struct NewOrder<'info> {
 impl NewOrder<'_> {
     pub fn access_control_new_order(&self, limit_price: u64, max_base_qty: u64) -> Result<()> {
         let clock = Clock::get()?;
-        if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
-            || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
-        }
+        let auction = (*self.auction).into_inner();
+        let open_orders = (*self.open_orders).into_inner();
+        // if (self.auction.end_order_phase < clock.unix_timestamp && self.open_orders.side == Side::Ask)
+        //     || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
+        // {
+        //     return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
+        // } 
+        is_order_phase_active(clock, auction)?;
 
-        if (self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
-            || (self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::EncryptedOrdersOnlyOnThisSide));
-        }
+        // if (self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
+        //     || (self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
+        // {
+        //     return Err(error!(CustomErrors::EncryptedOrdersOnlyOnThisSide));
+        // }
+        normal_orders_only(auction, open_orders)?;
 
         if limit_price % self.auction.tick_size != 0 {
             return Err(error!(CustomErrors::LimitPriceNotAMultipleOfTickSize));
@@ -111,17 +116,11 @@ impl NewOrder<'_> {
     // TODO move this to cancel_order.rs
     pub fn access_control_cancel_order(&self, order_id: u128) -> Result<()> {
         let clock = Clock::get()?;
-        if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
-            || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
-        }
+        let auction = (*self.auction).into_inner();
+        let open_orders = (*self.open_orders).into_inner();
 
-        if (self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
-            || (self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::EncryptedOrdersOnlyOnThisSide));
-        }
+        is_order_phase_active(clock, auction)?;
+        normal_orders_only(auction, open_orders)?;
 
         // Validate the order id is present, will error inside function if not
         let _ = self.open_orders.find_order_index(order_id)?;

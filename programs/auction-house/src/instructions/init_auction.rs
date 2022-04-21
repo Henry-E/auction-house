@@ -21,7 +21,7 @@ pub struct InitAuction<'info> {
     // An account struct with all of the auction options
     #[account(
         init,
-        seeds = [AUCTION.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [AUCTION.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
         bump,
         space = 1000,
         payer = auctioneer,
@@ -30,7 +30,7 @@ pub struct InitAuction<'info> {
     /// CHECK: This is a PDA   
     #[account(
         init,
-        seeds = [MARKET_STATE.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [MARKET_STATE.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
         bump,
         space = 1000,
         payer = auctioneer,
@@ -52,7 +52,7 @@ pub struct InitAuction<'info> {
         init,
         token::mint = base_mint,
         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [QUOTE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
     )]
@@ -61,7 +61,7 @@ pub struct InitAuction<'info> {
         init,
         token::mint = base_mint,
         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [BASE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
     )]
@@ -76,17 +76,16 @@ pub struct InitAuction<'info> {
 impl InitAuction<'_> {
     pub fn validate_args(args: InitAuctionArgs) -> Result<()> {
         let clock = Clock::get()?;
-        // Bids / Asks time ends before it starts
-        if (args.start_time <= args.end_asks) | (args.start_bids <= args.end_bids) {
+        // Orders phase ends before it starts
+        if args.end_order_phase <= args.start_order_phase {
             return Err(error!(CustomErrors::InvalidStartTimes));
         }
-        // Bids / Asks time ends in the future
-        if (args.end_asks <= clock.unix_timestamp) | (args.end_bids <= clock.unix_timestamp) {
+        // Orders phase should end in the future
+        if args.end_order_phase <= clock.unix_timestamp {
             return Err(error!(CustomErrors::InvalidEndTimes));
         }
-        // Decryption phase ends at or after the end of bids / asks
-        if (args.end_decryption_phase < args.end_asks)
-            || (args.end_decryption_phase < args.end_bids)
+        // Decryption phase should end at or after the end of the order phase
+        if args.end_decryption_phase < args.end_order_phase
         {
             return Err(error!(CustomErrors::InvalidDecryptionEndTime));
         }
@@ -103,10 +102,8 @@ impl InitAuction<'_> {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct InitAuctionArgs {
-    pub start_time: i64,
-    pub end_asks: i64,
-    pub start_bids: i64,
-    pub end_bids: i64,
+    pub start_order_phase: i64,
+    pub end_order_phase: i64,
     pub end_decryption_phase: i64,
     pub are_asks_encrypted: bool,
     pub are_bids_encrypted: bool,
@@ -123,10 +120,8 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
             base_vault: *ctx.bumps.get("base_vault").unwrap(),
             market_state: *ctx.bumps.get("market_state").unwrap(),
         },
-        start_time: args.start_time,
-        end_asks: args.end_asks,
-        start_bids: args.start_bids,
-        end_bids: args.end_bids,
+        start_order_phase: args.start_order_phase,
+        end_order_phase: args.end_order_phase,
         end_decryption_phase: args.end_decryption_phase,
         are_asks_encrypted: args.are_asks_encrypted,
         are_bids_encrypted: args.are_bids_encrypted,

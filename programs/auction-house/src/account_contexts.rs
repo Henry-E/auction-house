@@ -1,6 +1,7 @@
 use agnostic_orderbook::state::{EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN};
 use anchor_lang::prelude::*;
 
+use crate::access_controls::*;
 use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
@@ -21,7 +22,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     // An account struct with all of the auction options
 //     #[account(
 //         init,
-//         seeds = [AUCTION.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [AUCTION.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
 //         bump,
 //         space = 1000,
 //         payer = auctioneer,
@@ -30,7 +31,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     /// CHECK: This is a PDA
 //     #[account(
 //         init,
-//         seeds = [MARKET_STATE.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [MARKET_STATE.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
 //         bump,
 //         space = 1000,
 //         payer = auctioneer,
@@ -52,7 +53,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //         init,
 //         token::mint = base_mint,
 //         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-//         seeds = [QUOTE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [QUOTE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
 //         bump,
 //         payer = auctioneer,
 //     )]
@@ -61,7 +62,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //         init,
 //         token::mint = base_mint,
 //         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-//         seeds = [BASE_VAULT.as_bytes(), &args.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [BASE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
 //         bump,
 //         payer = auctioneer,
 //     )]
@@ -77,10 +78,10 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     pub fn validate_args(args: InitAuctionArgs) -> Result<()> {
 //         let clock = Clock::get()?;
 //         // Let's not be too harsh about start times
-//         if (args.start_time <= args.end_asks) | (args.start_bids <= args.end_bids) {
+//         if (args.start_order_phase <= args.end_order_phase) | (args.start_bids <= args.end_bids) {
 //             return Err(error!(CustomErrors::InvalidStartTimes));
 //         }
-//         if (args.end_asks <= clock.unix_timestamp) | (args.end_bids <= clock.unix_timestamp) {
+//         if (args.end_order_phase <= clock.unix_timestamp) | (args.end_bids <= clock.unix_timestamp) {
 //             return Err(error!(CustomErrors::InvalidEndTimes));
 //         }
 //         if args.min_base_order_size <= 0 {
@@ -104,13 +105,13 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     pub user: Signer<'info>,
 //     // Program accounts
 //     #[account(
-//         seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump = auction.bump,
 //     )]
 //     pub auction: Box<Account<'info, Auction>>,
 //     #[account(
 //         init,
-//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump,
 //         space = 500, // ??? We need quite a lot really with the encryption stuff
 //         payer = user,
@@ -118,7 +119,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     pub open_orders: Box<Account<'info, OpenOrders>>,
 //     #[account(
 //         init,
-//         seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump,
 //         space = 18,
 //         payer = user,
@@ -148,13 +149,13 @@ pub struct NewEncryptedOrder<'info> {
     pub user: Signer<'info>,
     // Program accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
         mut,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = open_orders.bump,
         mut
     )]
@@ -166,13 +167,13 @@ pub struct NewEncryptedOrder<'info> {
     )]
     pub user_token: Account<'info, TokenAccount>,
     #[account(
-        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
         mut
     )]
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
-        seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.base_vault,
         mut
     )]
@@ -184,21 +185,16 @@ pub struct NewEncryptedOrder<'info> {
 impl NewEncryptedOrder<'_> {
     pub fn access_control_new_encrypted_order(&self, public_key: &Vec<u8>) -> Result<()> {
         let clock = Clock::get()?;
-        if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
-            || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
-        }
+        let auction = (*self.auction).into_inner();
+        let open_orders = (*self.open_orders).into_inner();
 
-        if (!self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
-            || (!self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::UnencryptedOrdersOnlyOnThisSide));
-        }
+        is_order_phase_active(clock, auction)?;
+        encrypted_orders_only(auction, open_orders)?;
+        has_space_for_new_orders(open_orders)?;
 
-        if self.open_orders.num_orders == self.open_orders.max_orders {
-            return Err(error!(CustomErrors::TooManyOrders));
-        }
+        // if self.open_orders.num_orders == self.open_orders.max_orders {
+        //     return Err(error!(CustomErrors::TooManyOrders));
+        // }
 
         if !self.open_orders.public_key.is_empty() && self.open_orders.public_key != *public_key {
             return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch));
@@ -210,7 +206,7 @@ impl NewEncryptedOrder<'_> {
         let clock = Clock::get()?;
         // TODO
         // Add an access control that would allow encrypted orders to be cancelled after the decryption period
-        if (self.auction.end_asks < clock.unix_timestamp && self.open_orders.side == Side::Ask)
+        if (self.auction.end_order_phase < clock.unix_timestamp && self.open_orders.side == Side::Ask)
             || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
         {
             return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
@@ -235,19 +231,19 @@ impl NewEncryptedOrder<'_> {
 //     pub user: Signer<'info>,
 //     // Program Accounts
 //     #[account(
-//         seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump = auction.bump,
 //     )]
 //     pub auction: Box<Account<'info, Auction>>,
 //     #[account(
-//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump = open_orders.bump,
 //         mut
 //     )]
 //     pub open_orders: Box<Account<'info, OpenOrders>>,
 //     // AOB Accounts
 //     #[account(
-//         seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump = auction.bumps.market_state,
 //     )]
 //     pub market_state: Account<'info, MarketState>,
@@ -279,13 +275,13 @@ impl NewEncryptedOrder<'_> {
 //     )]
 //     pub user_token: Account<'info, TokenAccount>,
 //     #[account(
-//         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump = auction.bumps.quote_vault,
 //         mut
 //     )]
 //     pub quote_vault: Account<'info, TokenAccount>,
 //     #[account(
-//         seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
 //         bump = auction.bumps.base_vault,
 //         mut
 //     )]
@@ -299,20 +295,20 @@ pub struct DecryptOrder<'info> {
     pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
         bump = auction.bump,
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [&open_orders.authority.as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [&open_orders.authority.as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
         bump = open_orders.bump,
         mut
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts
     #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
         bump = auction.bumps.market_state,
     )]
     pub market_state: Account<'info, MarketState>,
@@ -345,13 +341,13 @@ pub struct CalculateClearingPrice<'info> {
     // pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.market_state,
     )]
     pub market_state: Account<'info, MarketState>,
@@ -387,13 +383,13 @@ pub struct MatchOrders<'info> {
     // pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.market_state,
     )]
     pub market_state: Account<'info, MarketState>,
@@ -448,13 +444,13 @@ impl<'info> MatchOrders<'info> {
 pub struct ConsumeEvents<'info> {
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.market_state,
     )]
     pub market_state: Account<'info, MarketState>,
@@ -478,32 +474,32 @@ pub struct SettleAndCloseOpenOrders<'info> {
     pub user: SystemAccount<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = open_orders.bump,
         mut,
         close = user,
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     #[account(
-        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = order_history.bump,
         mut
     )]
     pub order_history: Account<'info, OrderHistory>, // Persists after open_orders has closed
     // Token Accounts
     #[account(
-        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
         mut
     )]
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
-        seeds = [BASE_VAULT.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.base_vault,
         mut
     )]
@@ -549,13 +545,13 @@ pub struct CloseAobAccounts<'info> {
     pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.market_state,
         mut,
     )]

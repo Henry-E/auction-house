@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::token::{Mint, TokenAccount};
 
+use crate::access_controls::*;
 use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
@@ -18,13 +19,13 @@ pub struct InitOpenOrders<'info> {
     pub user: Signer<'info>,
     // Program accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bump,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
         init,
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump,
         space = 500, // TODO add some kind of macro to calculate the space needed
         payer = user,
@@ -32,7 +33,7 @@ pub struct InitOpenOrders<'info> {
     pub open_orders: Box<Account<'info, OpenOrders>>,
     #[account(
         init,
-        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_time.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump,
         space = 18,
         payer = user,
@@ -59,13 +60,13 @@ pub struct InitOpenOrders<'info> {
 }
 
 impl InitOpenOrders<'_> {
-    pub fn access_control(&self, side: Side, max_orders: u8) -> Result<()> {
+    pub fn access_control(&self, max_orders: u8) -> Result<()> {
         let clock = Clock::get()?;
-        if (self.auction.end_asks < clock.unix_timestamp && side == Side::Ask)
-            || (self.auction.end_bids < clock.unix_timestamp && side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
-        }
+        let auction = (*self.auction).into_inner();
+
+        is_order_phase_active(clock, auction)?;
+        // TODO make the max_order value = 8 here a constant once we know
+        // how many orders can be decrypted within 200k compute units
         if max_orders < 1 && 8 < max_orders {
             return Err(error!(CustomErrors::MaxOrdersValueIsInvalid));
         }

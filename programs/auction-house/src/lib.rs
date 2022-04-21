@@ -27,6 +27,7 @@ mod account_data;
 mod consts;
 mod error;
 mod instructions;
+mod access_controls;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -53,7 +54,7 @@ pub mod auction_house {
         instructions::init_auction(ctx, args)
     }
 
-    #[access_control(ctx.accounts.access_control(side, max_orders))]
+    #[access_control(ctx.accounts.access_control(max_orders))]
     pub fn init_open_orders(
         ctx: Context<InitOpenOrders>,
         side: Side,
