@@ -46,10 +46,14 @@ pub enum CustomErrors {
     OrderPhaseHasNotStarted,
     #[msg("Time for placing bid or ask orders has finished")]
     OrderPhaseIsOver,
+    #[msg("It is not the time for placing bid or ask orders")]
+    OrderPhaseNotActive,
     #[msg("The phase for decrypting bid or ask orders hasn't started")]
     DecryptionPhaseHasNotStarted,
     #[msg("The phase for decrypting bid or ask orders has finished")]
     DecryptionPhaseHasEnded,
+    #[msg("It is not the time for decrypting bid or ask orders")]
+    DecryptionPhaseNotActive,
     #[msg("Max orders value is either too high or too low, min 1 max 8")]
     MaxOrdersValueIsInvalid,
     #[msg("Can only place encrypted orders on this side of the book")]

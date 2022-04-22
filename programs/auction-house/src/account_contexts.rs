@@ -188,7 +188,9 @@ impl NewEncryptedOrder<'_> {
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
 
-        is_order_phase_active(clock, &auction)?;
+        if !is_order_phase_active(clock, &auction) {
+            return Err(error!(CustomErrors::OrderPhaseNotActive));
+        }
         encrypted_orders_only(&auction, &open_orders)?;
         has_space_for_new_orders(&open_orders)?;
 
@@ -210,8 +212,12 @@ impl NewEncryptedOrder<'_> {
         // This check will allow encrypted orders to be cancelled after the
         // decryption period finishes. Needed in case there are leftover
         // undecrypted orders.
+        // TODO
+        // Restructure this new if statement better and return a clearer error
         if clock.unix_timestamp < auction.end_decryption_phase {
-            is_order_phase_active(clock, &auction)?;
+            if !is_order_phase_active(clock, &auction) {
+                return Err(error!(CustomErrors::OrderPhaseNotActive));
+            }
         }
         encrypted_orders_only(&auction, &open_orders)?;
 
@@ -328,7 +334,9 @@ impl DecryptOrder<'_> {
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
 
-        is_decryption_phase_active(clock, &auction)?;
+        if !is_decryption_phase_active(clock, &auction) {
+            return Err(error!(CustomErrors::DecryptionPhaseNotActive));
+        };
         encrypted_orders_only(&auction, &open_orders)?;
 
         Ok(())

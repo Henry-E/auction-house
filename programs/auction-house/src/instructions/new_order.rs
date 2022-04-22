@@ -80,7 +80,9 @@ impl NewOrder<'_> {
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
 
-        is_order_phase_active(clock, &auction)?;
+        if !is_order_phase_active(clock, &auction) {
+            return Err(error!(CustomErrors::OrderPhaseNotActive));
+        }
         normal_orders_only(&auction, &open_orders)?;
         has_space_for_new_orders(&open_orders)?;
 
@@ -101,7 +103,9 @@ impl NewOrder<'_> {
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
 
-        is_order_phase_active(clock, &auction)?;
+        if !is_order_phase_active(clock, &auction) {
+            return Err(error!(CustomErrors::OrderPhaseNotActive));
+        }
         normal_orders_only(&auction, &open_orders)?;
 
         // Validate the order id is present, will error inside function if not

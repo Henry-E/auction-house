@@ -7,24 +7,28 @@ use agnostic_orderbook::{
     state::{EventQueueHeader, Side},
 };
 
-pub fn is_order_phase_active(clock: Clock, auction: &Auction) -> Result<()> {
+pub fn is_order_phase_active(clock: Clock, auction: &Auction) -> bool {
     if clock.unix_timestamp < auction.start_order_phase {
-        return Err(error!(CustomErrors::OrderPhaseHasNotStarted));
+        // return Err(error!(CustomErrors::OrderPhaseHasNotStarted));
+        return false
     }
     if auction.end_order_phase < clock.unix_timestamp {
-        return Err(error!(CustomErrors::OrderPhaseIsOver));
+        // return Err(error!(CustomErrors::OrderPhaseIsOver));
+        return false
     }
-    Ok(())
+    true
 }
 
-pub fn is_decryption_phase_active(clock: Clock, auction: &Auction) -> Result<()> {
+pub fn is_decryption_phase_active(clock: Clock, auction: &Auction) -> bool {
     if clock.unix_timestamp < auction.end_order_phase {
-        return Err(error!(CustomErrors::DecryptionPhaseHasNotStarted));
+        // return Err(error!(CustomErrors::DecryptionPhaseHasNotStarted));
+        return false
     }
     if auction.end_decryption_phase < clock.unix_timestamp {
-        return Err(error!(CustomErrors::DecryptionPhaseHasEnded));
+        // return Err(error!(CustomErrors::DecryptionPhaseHasEnded));
+        return false
     }
-    Ok(())
+    true
 }
 
 pub fn is_calc_clearing_price_phase_active(clock: Clock, auction: &Auction) -> bool {
