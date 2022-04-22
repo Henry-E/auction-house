@@ -16,18 +16,19 @@ use xsalsa20poly1305::{
 use std::cmp;
 use std::convert::TryInto;
 
+use access_controls::*;
 use account_contexts::*;
 use account_data::*;
 use consts::*;
 use error::*;
 use instructions::*;
 
+mod access_controls;
 mod account_contexts;
 mod account_data;
 mod consts;
 mod error;
 mod instructions;
-mod access_controls;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -96,7 +97,7 @@ pub mod auction_house {
         let open_orders = &mut *ctx.accounts.open_orders;
         let order_idx = open_orders.find_order_index(order_id)?;
         open_orders.orders.remove(order_idx);
-        open_orders.num_orders -= 1;
+        open_orders.num_orders = open_orders.num_orders.checked_sub(1).unwrap();
 
         match open_orders.side {
             Side::Ask => {
@@ -176,7 +177,7 @@ pub mod auction_house {
     pub fn cancel_encrypted_order(ctx: Context<NewEncryptedOrder>, order_idx: usize) -> Result<()> {
         let open_orders = &mut *ctx.accounts.open_orders;
         let this_order = open_orders.encrypted_orders.remove(order_idx);
-        open_orders.num_orders -= 1;
+        open_orders.num_orders = open_orders.num_orders.checked_sub(1).unwrap();
 
         match open_orders.side {
             Side::Ask => {
@@ -237,25 +238,38 @@ pub mod auction_house {
             let max_base_qty = u64::from_le_bytes(price_and_quantity[8..16].try_into().unwrap());
             let max_quote_qty = fp32_mul(max_base_qty, limit_price);
             // If any order triggers an error, then none of the orders will be processed.
-            // TODO possibly put these in helper functions
-            if limit_price % ctx.accounts.auction.tick_size != 0 {
-                return Err(error!(CustomErrors::LimitPriceNotAMultipleOfTickSize));
-            }
-            if max_base_qty < ctx.accounts.auction.min_base_order_size {
-                return Err(error!(CustomErrors::OrderBelowMinBaseOrderSize));
-            }
+            validate_price_and_qty(
+                &ctx.accounts.auction.clone().into_inner(),
+                limit_price,
+                max_base_qty,
+            )?;
+            // Make sure the order has enough tokens.
+            // If the order is for less than token_qty then move that amount to token_free balance.
             match open_orders.side {
                 Side::Ask => {
                     if encrypted_order.token_qty < max_base_qty {
                         return Err(error!(CustomErrors::InsufficientTokensForOrder));
+                    }
+                    let remaining_tokens =
+                        encrypted_order.token_qty.checked_sub(max_base_qty).unwrap();
+                    if remaining_tokens > 0 {
+                        open_orders.base_token_free = open_orders
+                            .base_token_free
+                            .checked_add(remaining_tokens)
+                            .unwrap();
+                        open_orders.base_token_locked = open_orders
+                            .base_token_locked
+                            .checked_sub(remaining_tokens)
+                            .unwrap();
                     }
                 }
                 Side::Bid => {
                     if encrypted_order.token_qty < max_quote_qty {
                         return Err(error!(CustomErrors::InsufficientTokensForOrder));
                     }
-                    let remaining_tokens = max_quote_qty
-                        .checked_sub(encrypted_order.token_qty)
+                    let remaining_tokens = encrypted_order
+                        .token_qty
+                        .checked_sub(max_quote_qty)
                         .unwrap();
                     if remaining_tokens > 0 {
                         open_orders.quote_token_free = open_orders
@@ -270,19 +284,7 @@ pub mod auction_house {
                 }
             }
             // Place a new order
-            let params = Params {
-                max_base_qty,
-                max_quote_qty,
-                limit_price,
-                side: open_orders.side,
-                callback_info: Vec::new(),
-                post_only: true,
-                post_allowed: true,
-                // self trade behaviour is ignored, this is a vestigial argument
-                self_trade_behavior: agnostic_orderbook::state::SelfTradeBehavior::DecrementTake,
-                match_limit: 1,
-            };
-
+            let params = open_orders.new_order_params(limit_price, max_base_qty, max_quote_qty);
             let order_summary = order_book
                 .new_order(
                     params,
@@ -322,16 +324,31 @@ pub mod auction_house {
         let mut current_ask: LeafNode;
 
         if auction.current_ask_key == 0 && auction.current_bid_key == 0 {
-            // TODO Add an access control that verifies there's orders on both orderbooks
-            current_bid = bid_iter.next().unwrap();
+            current_bid = match bid_iter.next() {
+                Some(bid) => bid,
+                None => {
+                    msg!("No orders found on the bid queue");
+                    auction.has_found_clearing_price = true;
+                    return Ok(());
+                }
+            };
             auction.current_bid_key = current_bid.key;
-            current_ask = ask_iter.next().unwrap();
+            current_ask = match ask_iter.next() {
+                Some(ask) => ask,
+                None => {
+                    msg!("No orders found on the ask queue");
+                    auction.has_found_clearing_price = true;
+                    return Ok(());
+                }
+            };
             auction.current_ask_key = current_ask.key;
         } else {
             // TODO add a fake serialization function that iterates over the iterators
             // until it reaches the current bid/ask key. And errors if it can't find them
-            current_bid = bid_iter.next().unwrap();
-            current_ask = ask_iter.next().unwrap();
+            // current_bid = bid_iter.next().unwrap();
+            // current_ask = ask_iter.next().unwrap();
+            msg!("intermediate serialization not implemented yet");
+            return Err(error!(CustomErrors::NotImplemented));
         }
 
         for _ in 0..limit {
@@ -355,16 +372,15 @@ pub mod auction_house {
                         .total_quantity_filled_so_far
                         .checked_add(ask_quantity_remaining)
                         .unwrap();
-                    let new_ask = ask_iter.next();
-                    match new_ask {
-                        Some(ask) => {
-                            if ask.price() > current_bid.price() {
+                    match ask_iter.next() {
+                        Some(new_ask) => {
+                            if new_ask.price() > current_bid.price() {
                                 // price have crossed
                                 auction.has_found_clearing_price = true;
                                 break;
                             }
-                            current_ask = ask;
-                            auction.current_ask_key = ask.key;
+                            current_ask = new_ask;
+                            auction.current_ask_key = new_ask.key;
                             auction.current_ask_quantity_filled = 0;
                         }
                         None => {
@@ -384,16 +400,15 @@ pub mod auction_house {
                         .total_quantity_filled_so_far
                         .checked_add(bid_quantity_remaining)
                         .unwrap();
-                    let new_bid = bid_iter.next();
-                    match new_bid {
-                        Some(bid) => {
-                            if current_ask.price() > bid.price() {
+                    match bid_iter.next() {
+                        Some(new_bid) => {
+                            if current_ask.price() > new_bid.price() {
                                 // price have crossed
                                 auction.has_found_clearing_price = true;
                                 break;
                             }
-                            current_bid = bid;
-                            auction.current_bid_key = bid.key;
+                            current_bid = new_bid;
+                            auction.current_bid_key = new_bid.key;
                             auction.current_bid_quantity_filled = 0;
                         }
                         None => {
@@ -453,7 +468,7 @@ pub mod auction_house {
         }
 
         for _ in 0..limit {
-            // bbo -> best bid or offer
+            // bbo: best bid or offer
             let bbo_key = match order_book.find_bbo(side) {
                 None => {
                     // Queue is empty
@@ -533,7 +548,7 @@ pub mod auction_house {
                     }
                     let mut out_size = bbo_node.base_quantity - fill_size;
                     // Bids get a partial refund if they're filled at a lower price
-                    if bbo_node.price() > auction.clearing_price {
+                    if fill_size > 0 && bbo_node.price() > auction.clearing_price {
                         let quote_owed = fp32_mul(fill_size, bbo_node.price())
                             .checked_sub(fp32_mul(fill_size, auction.clearing_price))
                             .unwrap();
@@ -574,7 +589,6 @@ pub mod auction_house {
         limit: u16,
         allow_no_op: bool,
     ) -> Result<()> {
-        // TODO We've found 3 different ways to load the event queue, which way is the correct one
         let header = {
             let mut event_queue_data: &[u8] =
                 &ctx.accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
@@ -606,14 +620,13 @@ pub mod auction_house {
                     let user_side = taker_side.opposite();
                     let user_pubkey =
                         Pubkey::new_from_array(maker_callback_info.try_into().unwrap());
-                    let user_account_info = &ctx.remaining_accounts[ctx
+                    let user_account_info = ctx
                         .remaining_accounts
-                        .binary_search_by_key(&user_pubkey, |remaining_account| {
-                            *remaining_account.key
-                        })
-                        .map_err(|_| {
-                            error!(CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts)
-                        })?];
+                        .iter()
+                        .find(|remaining_account| remaining_account.key() == user_pubkey)
+                        .ok_or(error!(
+                            CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts
+                        ))?;
                     let mut user_open_orders: Account<OpenOrders> =
                         Account::try_from(user_account_info)?;
                     // TODO what (if any) account validation is necessary?
@@ -656,14 +669,13 @@ pub mod auction_house {
                 } => {
                     let user_side = side;
                     let user_pubkey = Pubkey::new_from_array(callback_info.try_into().unwrap());
-                    let user_account_info = &ctx.remaining_accounts[ctx
+                    let user_account_info = ctx
                         .remaining_accounts
-                        .binary_search_by_key(&user_pubkey, |remaining_account| {
-                            *remaining_account.key
-                        })
-                        .map_err(|_| {
-                            error!(CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts)
-                        })?];
+                        .iter()
+                        .find(|remaining_account| remaining_account.key() == user_pubkey)
+                        .ok_or(error!(
+                            CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts
+                        ))?;
                     let mut user_open_orders: Account<OpenOrders> =
                         Account::try_from(user_account_info)?;
                     // TODO what (if any) account validation is necessary?
@@ -698,16 +710,10 @@ pub mod auction_house {
                         }
                     }
 
-                    // TODO Add some of the serum v4 implementations on OpenOrders
-                    // struct to add and remove orders more efficiently
-                    let order_idx = user_open_orders
-                        .orders
-                        .iter()
-                        .enumerate()
-                        .find(|(_, this_order)| **this_order == order_id)
-                        .ok_or(error!(CustomErrors::OrderIdNotFound))?
-                        .0;
+                    let order_idx = user_open_orders.find_order_index(order_id)?;
                     user_open_orders.orders.remove(order_idx);
+                    user_open_orders.num_orders =
+                        user_open_orders.num_orders.checked_sub(1).unwrap();
 
                     user_open_orders.exit(ctx.program_id)?;
                 }

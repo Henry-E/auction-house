@@ -22,8 +22,16 @@ pub enum CustomErrors {
     NoBidOrders,
     #[msg("No orders in the orderbook")]
     NoOrdersInOrderbook,
+    #[msg("Calculating clearing price phase is not active")]
+    CalcClearingPricePhaseNotActive,
+    #[msg("Clearing price has already been found")]
+    ClearingPriceAlreadyFound,
     #[msg("Clearing price not found yet")]
     NoClearingPriceYet,
+    #[msg("Match orders phase is not active")]
+    MatchOrdersPhaseNotActive,
+    #[msg("Auction not finished yet")]
+    AuctionNotFinished,
     #[msg("AOB Event queue is full")]
     AobEventQueueFull,
     #[msg("No events processed")]
@@ -36,10 +44,14 @@ pub enum CustomErrors {
     OrderIdNotFound,
     #[msg("Order index is invalid")]
     OrderIdxNotValid,
-    #[msg("Time for placing bid or ask orders has finished")]
-    OrderPhaseIsOver,
     #[msg("Time for placing bid or ask orders hasn't started")]
     OrderPhaseHasNotStarted,
+    #[msg("Time for placing bid or ask orders has finished")]
+    OrderPhaseIsOver,
+    #[msg("The phase for decrypting bid or ask orders hasn't started")]
+    DecryptionPhaseHasNotStarted,
+    #[msg("The phase for decrypting bid or ask orders has finished")]
+    DecryptionPhaseHasEnded,
     #[msg("Max orders value is either too high or too low, min 1 max 8")]
     MaxOrdersValueIsInvalid,
     #[msg("Can only place encrypted orders on this side of the book")]

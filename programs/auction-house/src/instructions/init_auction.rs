@@ -85,8 +85,7 @@ impl InitAuction<'_> {
             return Err(error!(CustomErrors::InvalidEndTimes));
         }
         // Decryption phase should end at or after the end of the order phase
-        if args.end_decryption_phase < args.end_order_phase
-        {
+        if args.end_decryption_phase < args.end_order_phase {
             return Err(error!(CustomErrors::InvalidDecryptionEndTime));
         }
         if args.min_base_order_size <= 0 {

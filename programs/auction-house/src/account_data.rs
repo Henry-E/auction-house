@@ -5,6 +5,7 @@ use bytemuck::try_from_bytes;
 use std::ops::Deref;
 
 // use agnostic_orderbook;
+use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::state::{SelfTradeBehavior, Side};
 
 use crate::error::CustomErrors;
@@ -95,6 +96,26 @@ impl OpenOrders {
             .ok_or(error!(CustomErrors::OrderIdNotFound))?
             .0;
         Ok(idx)
+    }
+
+    pub fn new_order_params(
+        &self,
+        limit_price: u64,
+        max_base_qty: u64,
+        max_quote_qty: u64,
+    ) -> Params {
+        Params {
+            max_base_qty,
+            max_quote_qty,
+            limit_price,
+            side: self.side,
+            callback_info: Vec::new(),
+            post_only: true,
+            post_allowed: true,
+            // self trade behaviour is ignored, this is a vestigial argument
+            self_trade_behavior: agnostic_orderbook::state::SelfTradeBehavior::DecrementTake,
+            match_limit: 1,
+        }
     }
 }
 

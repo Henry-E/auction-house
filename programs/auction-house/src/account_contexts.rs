@@ -185,12 +185,12 @@ pub struct NewEncryptedOrder<'info> {
 impl NewEncryptedOrder<'_> {
     pub fn access_control_new_encrypted_order(&self, public_key: &Vec<u8>) -> Result<()> {
         let clock = Clock::get()?;
-        let auction = (*self.auction).into_inner();
-        let open_orders = (*self.open_orders).into_inner();
+        let auction = self.auction.clone().into_inner();
+        let open_orders = self.open_orders.clone().into_inner();
 
-        is_order_phase_active(clock, auction)?;
-        encrypted_orders_only(auction, open_orders)?;
-        has_space_for_new_orders(open_orders)?;
+        is_order_phase_active(clock, &auction)?;
+        encrypted_orders_only(&auction, &open_orders)?;
+        has_space_for_new_orders(&open_orders)?;
 
         // if self.open_orders.num_orders == self.open_orders.max_orders {
         //     return Err(error!(CustomErrors::TooManyOrders));
@@ -204,19 +204,16 @@ impl NewEncryptedOrder<'_> {
 
     pub fn access_control_cancel_encrypted_order(&self, order_idx: usize) -> Result<()> {
         let clock = Clock::get()?;
-        // TODO
-        // Add an access control that would allow encrypted orders to be cancelled after the decryption period
-        if (self.auction.end_order_phase < clock.unix_timestamp && self.open_orders.side == Side::Ask)
-            || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
-        }
+        let auction = self.auction.clone().into_inner();
+        let open_orders = self.open_orders.clone().into_inner();
 
-        if (!self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
-            || (!self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
-        {
-            return Err(error!(CustomErrors::UnencryptedOrdersOnlyOnThisSide));
+        // This check will allow encrypted orders to be cancelled after the
+        // decryption period finishes. Needed in case there are leftover
+        // undecrypted orders.
+        if clock.unix_timestamp < auction.end_decryption_phase {
+            is_order_phase_active(clock, &auction)?;
         }
+        encrypted_orders_only(&auction, &open_orders)?;
 
         if self.open_orders.num_orders <= order_idx as u8 {
             return Err(error!(CustomErrors::OrderIdxNotValid));
@@ -335,6 +332,19 @@ pub struct DecryptOrder<'info> {
     pub ask_queue: UncheckedAccount<'info>,
 }
 
+impl DecryptOrder<'_> {
+    pub fn access_control(&self) -> Result<()> {
+        let clock = Clock::get()?;
+        let auction = self.auction.clone().into_inner();
+        let open_orders = self.open_orders.clone().into_inner();
+
+        is_decryption_phase_active(clock, &auction)?;
+        encrypted_orders_only(&auction, &open_orders)?;
+
+        Ok(())
+    }
+}
+
 #[derive(Accounts)]
 pub struct CalculateClearingPrice<'info> {
     // Technically don't need the auctioneer to sign for this one
@@ -365,15 +375,16 @@ pub struct CalculateClearingPrice<'info> {
     pub ask_queue: UncheckedAccount<'info>,
 }
 
-impl DecryptOrder<'_> {
+impl CalculateClearingPrice<'_> {
     pub fn access_control(&self) -> Result<()> {
-        // TODO
-        // Add check that order time has finished
-        // Add check that decryption time has not finished
-        // Add check that this side of the order book allows encrypted orders
+        let clock = Clock::get()?;
+        let auction = self.auction.clone().into_inner();
 
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        if !is_calc_clearing_price_phase_active(clock, &auction) {
+            return Err(error!(CustomErrors::CalcClearingPricePhaseNotActive));
+        }
+
+        Ok(())
     }
 }
 
@@ -417,23 +428,17 @@ pub struct MatchOrders<'info> {
 }
 
 impl<'info> MatchOrders<'info> {
-    /// Access Controls
-    /// 1. Clearing price must have been found before matching can happen
-    /// 2. There must be orders in the orderbook for matching to happen
     pub fn access_control(&self) -> Result<()> {
-        if !self.auction.has_found_clearing_price {
-            return Err(error!(CustomErrors::NoClearingPriceYet));
-        }
-
-        let orderbook = OrderBookState::new_safe(
+        let auction = self.auction.clone().into_inner();
+        let order_book = OrderBookState::new_safe(
             &self.bid_queue.to_account_info(),
             &self.ask_queue.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
 
-        if orderbook.is_empty() {
-            return Err(error!(CustomErrors::NoOrdersInOrderbook));
+        if !is_match_orders_phase_active(&auction, &order_book) {
+            return Err(error!(CustomErrors::MatchOrdersPhaseNotActive));
         }
 
         Ok(())
@@ -526,6 +531,7 @@ pub struct SettleAndCloseOpenOrders<'info> {
 }
 
 impl SettleAndCloseOpenOrders<'_> {
+    // Allowed to be called at any time essentially
     pub fn access_control(&self) -> Result<()> {
         if self.open_orders.num_orders > 0 {
             return Err(error!(CustomErrors::OpenOrdersHasOpenOrders));
@@ -581,20 +587,13 @@ pub struct CloseAobAccounts<'info> {
 
 impl CloseAobAccounts<'_> {
     pub fn access_control(&self) -> Result<()> {
-        if !self.auction.has_found_clearing_price {
-            return Err(error!(CustomErrors::NoClearingPriceYet));
-        }
-
+        let auction = self.auction.clone().into_inner();
         let order_book = OrderBookState::new_safe(
             &self.bid_queue.to_account_info(),
             &self.ask_queue.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
-        if !order_book.is_empty() {
-            return Err(error!(CustomErrors::OrderBookNotEmpty));
-        }
-
         let event_queue_header = {
             let mut event_queue_data: &[u8] =
                 &self.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
@@ -602,8 +601,9 @@ impl CloseAobAccounts<'_> {
                 .unwrap()
                 .check()?
         };
-        if event_queue_header.count > 0 {
-            return Err(error!(CustomErrors::EventQueueNotEmpty));
+
+        if !is_auction_over(&auction, &order_book, &event_queue_header) {
+            return Err(error!(CustomErrors::AuctionNotFinished));
         }
 
         Ok(())

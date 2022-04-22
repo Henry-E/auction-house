@@ -82,21 +82,12 @@ pub struct NewOrder<'info> {
 impl NewOrder<'_> {
     pub fn access_control_new_order(&self, limit_price: u64, max_base_qty: u64) -> Result<()> {
         let clock = Clock::get()?;
-        let auction = (*self.auction).into_inner();
-        let open_orders = (*self.open_orders).into_inner();
-        // if (self.auction.end_order_phase < clock.unix_timestamp && self.open_orders.side == Side::Ask)
-        //     || (self.auction.end_bids < clock.unix_timestamp && self.open_orders.side == Side::Bid)
-        // {
-        //     return Err(error!(CustomErrors::BidOrAskOrdersAreFinished));
-        // } 
-        is_order_phase_active(clock, auction)?;
+        let auction = self.auction.clone().into_inner();
+        let open_orders = self.open_orders.clone().into_inner();
 
-        // if (self.auction.are_asks_encrypted && self.open_orders.side == Side::Ask)
-        //     || (self.auction.are_bids_encrypted && self.open_orders.side == Side::Bid)
-        // {
-        //     return Err(error!(CustomErrors::EncryptedOrdersOnlyOnThisSide));
-        // }
-        normal_orders_only(auction, open_orders)?;
+        is_order_phase_active(clock, &auction)?;
+        normal_orders_only(&auction, &open_orders)?;
+        has_space_for_new_orders(&open_orders)?;
 
         if limit_price % self.auction.tick_size != 0 {
             return Err(error!(CustomErrors::LimitPriceNotAMultipleOfTickSize));
@@ -106,21 +97,17 @@ impl NewOrder<'_> {
             return Err(error!(CustomErrors::OrderBelowMinBaseOrderSize));
         }
 
-        if self.open_orders.num_orders == self.open_orders.max_orders {
-            return Err(error!(CustomErrors::TooManyOrders));
-        }
-
         Ok(())
     }
 
     // TODO move this to cancel_order.rs
     pub fn access_control_cancel_order(&self, order_id: u128) -> Result<()> {
         let clock = Clock::get()?;
-        let auction = (*self.auction).into_inner();
-        let open_orders = (*self.open_orders).into_inner();
+        let auction = self.auction.clone().into_inner();
+        let open_orders = self.open_orders.clone().into_inner();
 
-        is_order_phase_active(clock, auction)?;
-        normal_orders_only(auction, open_orders)?;
+        is_order_phase_active(clock, &auction)?;
+        normal_orders_only(&auction, &open_orders)?;
 
         // Validate the order id is present, will error inside function if not
         let _ = self.open_orders.find_order_index(order_id)?;
@@ -136,7 +123,6 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
         CALLBACK_INFO_LEN,
         CALLBACK_ID_LEN,
     )?;
-
     let header = {
         let mut event_queue_data: &[u8] =
             &ctx.accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
@@ -151,20 +137,10 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
     )?;
 
     let max_quote_qty = fp32_mul(max_base_qty, limit_price);
-    let params = Params {
-        max_base_qty,
-        max_quote_qty,
-        limit_price,
-        side: ctx.accounts.open_orders.side,
-        callback_info: Vec::new(),
-        post_only: true,
-        post_allowed: true,
-        // self trade behaviour is ignored, this is a vestigial argument
-        self_trade_behavior: agnostic_orderbook::state::SelfTradeBehavior::DecrementTake,
-        match_limit: 1,
-    };
-
-    // TODO we don't do anything with the AoError here, what should we do?
+    let params =
+        ctx.accounts
+            .open_orders
+            .new_order_params(limit_price, max_base_qty, max_quote_qty);
     let order_summary = order_book
         .new_order(
             params,

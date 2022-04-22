@@ -62,9 +62,9 @@ pub struct InitOpenOrders<'info> {
 impl InitOpenOrders<'_> {
     pub fn access_control(&self, max_orders: u8) -> Result<()> {
         let clock = Clock::get()?;
-        let auction = (*self.auction).into_inner();
+        let auction = self.auction.clone().into_inner();
 
-        is_order_phase_active(clock, auction)?;
+        is_order_phase_active(clock, &auction)?;
         // TODO make the max_order value = 8 here a constant once we know
         // how many orders can be decrypted within 200k compute units
         if max_orders < 1 && 8 < max_orders {
