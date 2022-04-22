@@ -7,7 +7,7 @@ use crate::consts::*;
 use crate::error::CustomErrors;
 
 use agnostic_orderbook::critbit::Slab;
-use agnostic_orderbook::state::{AccountTag, EventQueueHeader, MarketState};
+use agnostic_orderbook::state::{AccountTag, EventQueueHeader};
 
 // Flexible on design decisions such as:
 // - Using start time as part of the seeds to allow more than one auction
@@ -27,15 +27,6 @@ pub struct InitAuction<'info> {
         payer = auctioneer,
     )]
     pub auction: Box<Account<'info, Auction>>,
-    /// CHECK: This is a PDA   
-    #[account(
-        init,
-        seeds = [MARKET_STATE.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
-        bump,
-        space = 1000,
-        payer = auctioneer,
-    )]
-    pub market_state: UncheckedAccount<'info>,
     /// CHECK: This is zeroed and owned by the program
     #[account(zero, owner = crate::ID)]
     pub event_queue: UncheckedAccount<'info>,
@@ -117,7 +108,6 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
         bumps: AobBumps {
             quote_vault: *ctx.bumps.get("quote_vault").unwrap(),
             base_vault: *ctx.bumps.get("base_vault").unwrap(),
-            market_state: *ctx.bumps.get("market_state").unwrap(),
         },
         start_order_phase: args.start_order_phase,
         end_order_phase: args.end_order_phase,
@@ -125,6 +115,9 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
         are_asks_encrypted: args.are_asks_encrypted,
         are_bids_encrypted: args.are_bids_encrypted,
         //
+        event_queue: ctx.accounts.event_queue.key(),
+        bids: ctx.accounts.bid_queue.key(),
+        asks: ctx.accounts.ask_queue.key(),
         quote_mint: ctx.accounts.quote_mint.key(),
         base_mint: ctx.accounts.base_mint.key(),
         quote_vault: ctx.accounts.quote_vault.key(),
@@ -134,24 +127,6 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
         // Everything else defaults to 0
         ..(*ctx.accounts.auction).clone().into_inner()
     });
-
-    // Init market_state
-    let mut market_state = MarketState::get_unchecked(&ctx.accounts.market_state);
-
-    *market_state = MarketState {
-        tag: AccountTag::Market as u64,
-        caller_authority: [0u8; 32],
-        event_queue: ctx.accounts.event_queue.key().to_bytes(),
-        bids: ctx.accounts.bid_queue.key().to_bytes(),
-        asks: ctx.accounts.ask_queue.key().to_bytes(),
-        callback_info_len: CALLBACK_INFO_LEN as u64,
-        callback_id_len: CALLBACK_ID_LEN as u64,
-        fee_budget: 0,
-        initial_lamports: ctx.accounts.market_state.lamports(),
-        min_base_order_size: args.min_base_order_size,
-        tick_size: args.tick_size,
-        cranker_reward: 0,
-    };
 
     // Init event queue
     let event_queue_header = EventQueueHeader::initialize(CALLBACK_INFO_LEN);
@@ -163,7 +138,7 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
     Slab::initialize(
         &ctx.accounts.bid_queue,
         &ctx.accounts.ask_queue,
-        ctx.accounts.market_state.key(),
+        ctx.accounts.auction.key(),
         CALLBACK_INFO_LEN,
     );
 

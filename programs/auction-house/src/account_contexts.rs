@@ -239,28 +239,23 @@ impl NewEncryptedOrder<'_> {
 //     )]
 //     pub open_orders: Box<Account<'info, OpenOrders>>,
 //     // AOB Accounts
-//     #[account(
-//         seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
-//         bump = auction.bumps.market_state,
-//     )]
-//     pub market_state: Account<'info, MarketState>,
 //     /// CHECK: This should be owned by the program
 //     #[account(
-//         address = Pubkey::new_from_array(market_state.event_queue),
+//         address = auction.event_queue,
 //         owner = crate::ID,
 //         mut
 //     )]
 //     pub event_queue: UncheckedAccount<'info>,
 //     /// CHECK: This should be owned by the program
 //     #[account(
-//         address = Pubkey::new_from_array(market_state.bids),
+//         address = auction.bids,
 //         owner = crate::ID,
 //         mut
 //     )]
 //     pub bid_queue: UncheckedAccount<'info>,
 //     /// CHECK: This should be owned by the program
 //     #[account(
-//         address = Pubkey::new_from_array(market_state.asks),
+//         address = auction.asks,
 //         owner = crate::ID,
 //         mut
 //     )]
@@ -304,28 +299,23 @@ pub struct DecryptOrder<'info> {
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts
-    #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
-        bump = auction.bumps.market_state,
-    )]
-    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.event_queue),
+        address = auction.event_queue,
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.bids),
+        address = auction.bids,
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.asks),
+        address = auction.asks,
         owner = crate::ID,
         mut
     )]
@@ -356,20 +346,15 @@ pub struct CalculateClearingPrice<'info> {
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
-    #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.market_state,
-    )]
-    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.bids),
+        address = auction.bids,
         owner = crate::ID,
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.asks),
+        address = auction.asks,
         owner = crate::ID,
     )]
     pub ask_queue: UncheckedAccount<'info>,
@@ -399,28 +384,23 @@ pub struct MatchOrders<'info> {
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
-    #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.market_state,
-    )]
-    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.event_queue),
+        address = auction.event_queue,
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.bids),
+        address = auction.bids,
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.asks),
+        address = auction.asks,
         owner = crate::ID,
         mut
     )]
@@ -454,14 +434,9 @@ pub struct ConsumeEvents<'info> {
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
-    #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.market_state,
-    )]
-    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.event_queue),
+        address = auction.event_queue,
         owner = crate::ID,
         mut
     )]
@@ -556,29 +531,23 @@ pub struct CloseAobAccounts<'info> {
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
-    #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.market_state,
-        mut,
-    )]
-    pub market_state: Account<'info, MarketState>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.event_queue),
+        address = auction.event_queue,
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.bids),
+        address = auction.bids,
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.asks),
+        address = auction.asks,
         owner = crate::ID,
         mut
     )]

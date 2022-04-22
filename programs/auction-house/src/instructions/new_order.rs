@@ -31,28 +31,23 @@ pub struct NewOrder<'info> {
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // AOB Accounts
-    #[account(
-        seeds = [MARKET_STATE.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
-        bump = auction.bumps.market_state,
-    )]
-    pub market_state: Box<Account<'info, MarketState>>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.event_queue),
+        address = auction.event_queue,
         owner = crate::ID,
         mut
     )]
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.bids),
+        address = auction.bids,
         owner = crate::ID,
         mut
     )]
     pub bid_queue: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
-        address = Pubkey::new_from_array(market_state.asks),
+        address = auction.asks,
         owner = crate::ID,
         mut
     )]
