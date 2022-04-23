@@ -80,8 +80,8 @@ pub mod auction_house {
         // Move this to its own function & file when we're on a bigger monitor
 
         let mut order_book = OrderBookState::new_safe(
-            &ctx.accounts.bid_queue.to_account_info(),
-            &ctx.accounts.ask_queue.to_account_info(),
+            &ctx.accounts.bids.to_account_info(),
+            &ctx.accounts.asks.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
@@ -206,8 +206,8 @@ pub mod auction_house {
     pub fn decrypt_order(ctx: Context<DecryptOrder>, secret_key: Vec<u8>) -> Result<()> {
         // Load up all the AOB accounts
         let mut order_book = OrderBookState::new_safe(
-            &ctx.accounts.bid_queue.to_account_info(),
-            &ctx.accounts.ask_queue.to_account_info(),
+            &ctx.accounts.bids.to_account_info(),
+            &ctx.accounts.asks.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
@@ -310,8 +310,8 @@ pub mod auction_house {
         let auction = &mut ctx.accounts.auction;
 
         let mut order_book = OrderBookState::new_safe(
-            &ctx.accounts.bid_queue.to_account_info(),
-            &ctx.accounts.ask_queue.to_account_info(),
+            &ctx.accounts.bids.to_account_info(),
+            &ctx.accounts.asks.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
@@ -453,8 +453,8 @@ pub mod auction_house {
         )?;
 
         let mut order_book = OrderBookState::new_safe(
-            &ctx.accounts.bid_queue.to_account_info(),
-            &ctx.accounts.ask_queue.to_account_info(),
+            &ctx.accounts.bids.to_account_info(),
+            &ctx.accounts.asks.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
@@ -767,14 +767,14 @@ pub mod auction_house {
         **ctx.accounts.auctioneer.lamports.borrow_mut() = auctioneer_lamports
             .checked_add(ctx.accounts.event_queue.lamports())
             .unwrap()
-            .checked_add(ctx.accounts.bid_queue.lamports())
+            .checked_add(ctx.accounts.bids.lamports())
             .unwrap()
-            .checked_add(ctx.accounts.ask_queue.lamports())
+            .checked_add(ctx.accounts.asks.lamports())
             .unwrap();
 
         **ctx.accounts.event_queue.lamports.borrow_mut() = 0;
-        **ctx.accounts.bid_queue.lamports.borrow_mut() = 0;
-        **ctx.accounts.ask_queue.lamports.borrow_mut() = 0;
+        **ctx.accounts.bids.lamports.borrow_mut() = 0;
+        **ctx.accounts.asks.lamports.borrow_mut() = 0;
 
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())

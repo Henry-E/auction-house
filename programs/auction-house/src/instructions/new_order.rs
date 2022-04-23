@@ -44,14 +44,14 @@ pub struct NewOrder<'info> {
         owner = crate::ID,
         mut
     )]
-    pub bid_queue: UncheckedAccount<'info>,
+    pub bids: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
         address = auction.asks,
         owner = crate::ID,
         mut
     )]
-    pub ask_queue: UncheckedAccount<'info>,
+    pub asks: UncheckedAccount<'info>,
     // Token accounts
     #[account(
         constraint = user_token.owner == user.key(),
@@ -117,8 +117,8 @@ impl NewOrder<'_> {
 
 pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) -> Result<()> {
     let mut order_book = OrderBookState::new_safe(
-        &ctx.accounts.bid_queue.to_account_info(),
-        &ctx.accounts.ask_queue.to_account_info(),
+        &ctx.accounts.bids.to_account_info(),
+        &ctx.accounts.asks.to_account_info(),
         CALLBACK_INFO_LEN,
         CALLBACK_ID_LEN,
     )?;

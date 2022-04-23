@@ -42,10 +42,10 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     pub event_queue: UncheckedAccount<'info>,
 //     /// CHECK: This is zeroed and owned by the program
 //     #[account(zero, owner = crate::ID)]
-//     pub bid_queue: UncheckedAccount<'info>,
+//     pub bids: UncheckedAccount<'info>,
 //     /// CHECK: This is zeroed and owned by the program
 //     #[account(zero, owner = crate::ID)]
-//     pub ask_queue: UncheckedAccount<'info>,
+//     pub asks: UncheckedAccount<'info>,
 //     // Token vaults
 //     pub quote_mint: Account<'info, Mint>,
 //     pub base_mint: Account<'info, Mint>,
@@ -258,14 +258,14 @@ impl NewEncryptedOrder<'_> {
 //         owner = crate::ID,
 //         mut
 //     )]
-//     pub bid_queue: UncheckedAccount<'info>,
+//     pub bids: UncheckedAccount<'info>,
 //     /// CHECK: This should be owned by the program
 //     #[account(
 //         address = auction.asks,
 //         owner = crate::ID,
 //         mut
 //     )]
-//     pub ask_queue: UncheckedAccount<'info>,
+//     pub asks: UncheckedAccount<'info>,
 //     // Token accounts
 //     #[account(
 //         constraint = user_token.owner == user.key(),
@@ -318,14 +318,14 @@ pub struct DecryptOrder<'info> {
         owner = crate::ID,
         mut
     )]
-    pub bid_queue: UncheckedAccount<'info>,
+    pub bids: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
         address = auction.asks,
         owner = crate::ID,
         mut
     )]
-    pub ask_queue: UncheckedAccount<'info>,
+    pub asks: UncheckedAccount<'info>,
 }
 
 impl DecryptOrder<'_> {
@@ -359,13 +359,13 @@ pub struct CalculateClearingPrice<'info> {
         address = auction.bids,
         owner = crate::ID,
     )]
-    pub bid_queue: UncheckedAccount<'info>,
+    pub bids: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
         address = auction.asks,
         owner = crate::ID,
     )]
-    pub ask_queue: UncheckedAccount<'info>,
+    pub asks: UncheckedAccount<'info>,
 }
 
 impl CalculateClearingPrice<'_> {
@@ -405,22 +405,22 @@ pub struct MatchOrders<'info> {
         owner = crate::ID,
         mut
     )]
-    pub bid_queue: UncheckedAccount<'info>,
+    pub bids: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
         address = auction.asks,
         owner = crate::ID,
         mut
     )]
-    pub ask_queue: UncheckedAccount<'info>,
+    pub asks: UncheckedAccount<'info>,
 }
 
 impl<'info> MatchOrders<'info> {
     pub fn access_control(&self) -> Result<()> {
         let auction = self.auction.clone().into_inner();
         let order_book = OrderBookState::new_safe(
-            &self.bid_queue.to_account_info(),
-            &self.ask_queue.to_account_info(),
+            &self.bids.to_account_info(),
+            &self.asks.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;
@@ -552,22 +552,22 @@ pub struct CloseAobAccounts<'info> {
         owner = crate::ID,
         mut
     )]
-    pub bid_queue: UncheckedAccount<'info>,
+    pub bids: UncheckedAccount<'info>,
     /// CHECK: This should be owned by the program
     #[account(
         address = auction.asks,
         owner = crate::ID,
         mut
     )]
-    pub ask_queue: UncheckedAccount<'info>,
+    pub asks: UncheckedAccount<'info>,
 }
 
 impl CloseAobAccounts<'_> {
     pub fn access_control(&self) -> Result<()> {
         let auction = self.auction.clone().into_inner();
         let order_book = OrderBookState::new_safe(
-            &self.bid_queue.to_account_info(),
-            &self.ask_queue.to_account_info(),
+            &self.bids.to_account_info(),
+            &self.asks.to_account_info(),
             CALLBACK_INFO_LEN,
             CALLBACK_ID_LEN,
         )?;

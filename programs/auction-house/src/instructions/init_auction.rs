@@ -32,10 +32,10 @@ pub struct InitAuction<'info> {
     pub event_queue: UncheckedAccount<'info>,
     /// CHECK: This is zeroed and owned by the program
     #[account(zero, owner = crate::ID)]
-    pub bid_queue: UncheckedAccount<'info>,
+    pub bids: UncheckedAccount<'info>,
     /// CHECK: This is zeroed and owned by the program
     #[account(zero, owner = crate::ID)]
-    pub ask_queue: UncheckedAccount<'info>,
+    pub asks: UncheckedAccount<'info>,
     // Token vaults
     pub quote_mint: Account<'info, Mint>,
     pub base_mint: Account<'info, Mint>,
@@ -116,8 +116,8 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
         are_bids_encrypted: args.are_bids_encrypted,
         //
         event_queue: ctx.accounts.event_queue.key(),
-        bids: ctx.accounts.bid_queue.key(),
-        asks: ctx.accounts.ask_queue.key(),
+        bids: ctx.accounts.bids.key(),
+        asks: ctx.accounts.asks.key(),
         quote_mint: ctx.accounts.quote_mint.key(),
         base_mint: ctx.accounts.base_mint.key(),
         quote_vault: ctx.accounts.quote_vault.key(),
@@ -136,8 +136,8 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
 
     // Init orderbook
     Slab::initialize(
-        &ctx.accounts.bid_queue,
-        &ctx.accounts.ask_queue,
+        &ctx.accounts.bids,
+        &ctx.accounts.asks,
         ctx.accounts.auction.key(),
         CALLBACK_INFO_LEN,
     );
