@@ -10,11 +10,11 @@ use agnostic_orderbook::{
 pub fn is_order_phase_active(clock: Clock, auction: &Auction) -> bool {
     if clock.unix_timestamp < auction.start_order_phase {
         // return Err(error!(CustomErrors::OrderPhaseHasNotStarted));
-        return false
+        return false;
     }
     if auction.end_order_phase < clock.unix_timestamp {
         // return Err(error!(CustomErrors::OrderPhaseIsOver));
-        return false
+        return false;
     }
     true
 }
@@ -22,11 +22,11 @@ pub fn is_order_phase_active(clock: Clock, auction: &Auction) -> bool {
 pub fn is_decryption_phase_active(clock: Clock, auction: &Auction) -> bool {
     if clock.unix_timestamp < auction.end_order_phase {
         // return Err(error!(CustomErrors::DecryptionPhaseHasNotStarted));
-        return false
+        return false;
     }
     if auction.end_decryption_phase < clock.unix_timestamp {
         // return Err(error!(CustomErrors::DecryptionPhaseHasEnded));
-        return false
+        return false;
     }
     true
 }

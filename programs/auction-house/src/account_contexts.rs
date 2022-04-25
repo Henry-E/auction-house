@@ -1,5 +1,6 @@
 use agnostic_orderbook::state::{EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN};
 use anchor_lang::prelude::*;
+use anchor_spl::token;
 
 use crate::access_controls::*;
 use crate::account_data::*;
@@ -161,11 +162,22 @@ pub struct NewEncryptedOrder<'info> {
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // Token accounts
+    #[account(address = auction.quote_mint)]
+    pub quote_mint: Account<'info, Mint>,
+    #[account(address = auction.base_mint)]
+    pub base_mint: Account<'info, Mint>,
     #[account(
-        constraint = user_token.owner == user.key(),
+        associated_token::mint = quote_mint,
+        associated_token::authority = user,
         mut
     )]
-    pub user_token: Account<'info, TokenAccount>,
+    pub user_quote: Account<'info, TokenAccount>,
+    #[account(
+        associated_token::mint = base_mint,
+        associated_token::authority = user,
+        mut
+    )]
+    pub user_base: Account<'info, TokenAccount>,
     #[account(
         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
@@ -193,10 +205,6 @@ impl NewEncryptedOrder<'_> {
         }
         encrypted_orders_only(&auction, &open_orders)?;
         has_space_for_new_orders(&open_orders)?;
-
-        // if self.open_orders.num_orders == self.open_orders.max_orders {
-        //     return Err(error!(CustomErrors::TooManyOrders));
-        // }
 
         if !self.open_orders.public_key.is_empty() && self.open_orders.public_key != *public_key {
             return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch));
@@ -226,6 +234,45 @@ impl NewEncryptedOrder<'_> {
         }
 
         Ok(())
+    }
+}
+
+impl<'info> NewEncryptedOrder<'info> {
+    pub fn transfer_user_base(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.user_base.to_account_info(),
+            to: self.base_vault.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+    pub fn transfer_user_quote(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.user_quote.to_account_info(),
+            to: self.quote_vault.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+    pub fn transfer_base_vault(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.base_vault.to_account_info(),
+            to: self.user_base.to_account_info(),
+            authority: self.auction.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+    pub fn transfer_quote_vault(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.quote_vault.to_account_info(),
+            to: self.user_quote.to_account_info(),
+            authority: self.auction.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
     }
 }
 

@@ -114,7 +114,7 @@ pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<
         end_decryption_phase: args.end_decryption_phase,
         are_asks_encrypted: args.are_asks_encrypted,
         are_bids_encrypted: args.are_bids_encrypted,
-        //
+        // Order book stuff
         event_queue: ctx.accounts.event_queue.key(),
         bids: ctx.accounts.bids.key(),
         asks: ctx.accounts.asks.key(),

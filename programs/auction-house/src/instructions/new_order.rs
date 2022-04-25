@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
 use crate::access_controls::*;
 use crate::account_data::*;
@@ -53,11 +53,22 @@ pub struct NewOrder<'info> {
     )]
     pub asks: UncheckedAccount<'info>,
     // Token accounts
+    #[account(address = auction.quote_mint)]
+    pub quote_mint: Account<'info, Mint>,
+    #[account(address = auction.base_mint)]
+    pub base_mint: Account<'info, Mint>,
     #[account(
-        constraint = user_token.owner == user.key(),
+        associated_token::mint = quote_mint,
+        associated_token::authority = user,
         mut
     )]
-    pub user_token: Account<'info, TokenAccount>,
+    pub user_quote: Account<'info, TokenAccount>,
+    #[account(
+        associated_token::mint = base_mint,
+        associated_token::authority = user,
+        mut
+    )]
+    pub user_base: Account<'info, TokenAccount>,
     #[account(
         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
@@ -85,14 +96,7 @@ impl NewOrder<'_> {
         }
         normal_orders_only(&auction, &open_orders)?;
         has_space_for_new_orders(&open_orders)?;
-
-        if limit_price % self.auction.tick_size != 0 {
-            return Err(error!(CustomErrors::LimitPriceNotAMultipleOfTickSize));
-        }
-
-        if max_base_qty < self.auction.min_base_order_size {
-            return Err(error!(CustomErrors::OrderBelowMinBaseOrderSize));
-        }
+        validate_price_and_qty(&auction, limit_price, max_base_qty)?;
 
         Ok(())
     }
@@ -112,6 +116,45 @@ impl NewOrder<'_> {
         let _ = self.open_orders.find_order_index(order_id)?;
 
         Ok(())
+    }
+}
+
+impl<'info> NewOrder<'info> {
+    pub fn transfer_user_base(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.user_base.to_account_info(),
+            to: self.base_vault.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+    pub fn transfer_user_quote(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.user_quote.to_account_info(),
+            to: self.quote_vault.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+    pub fn transfer_base_vault(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.base_vault.to_account_info(),
+            to: self.user_base.to_account_info(),
+            authority: self.auction.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+    pub fn transfer_quote_vault(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.quote_vault.to_account_info(),
+            to: self.user_quote.to_account_info(),
+            authority: self.auction.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
     }
 }
 
@@ -156,20 +199,24 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
 
     match open_orders.side {
         Side::Ask => {
-            // TODO transfer total_base_qty worth of base currency from the user's account
-
             open_orders.base_token_locked = open_orders
                 .base_token_locked
                 .checked_add(order_summary.total_base_qty)
                 .unwrap();
+            token::transfer(
+                ctx.accounts.transfer_user_base(),
+                order_summary.total_base_qty,
+            )?;
         }
         Side::Bid => {
-            // TODO transfer total_quote_qty worth of quote currency from the user's account
-
             open_orders.quote_token_locked = open_orders
                 .quote_token_locked
                 .checked_add(order_summary.total_quote_qty)
                 .unwrap();
+            token::transfer(
+                ctx.accounts.transfer_user_quote(),
+                order_summary.total_quote_qty,
+            )?;
         }
     }
 

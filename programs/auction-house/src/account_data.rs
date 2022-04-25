@@ -49,6 +49,20 @@ pub struct Auction {
     pub clearing_price: u64,
 }
 
+#[macro_export]
+macro_rules! auction_seeds {
+    ( $auction:expr ) => {
+        &[
+            AUCTION.as_bytes(),
+            &$auction.start_order_phase.to_le_bytes(),
+            $auction.authority.as_ref(),
+            &[$auction.bump],
+        ]
+    };
+}
+
+pub use auction_seeds;
+
 // #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
 // pub enum FinalPriceTypes {
 //     BestBid,

@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token;
 
 use agnostic_orderbook::critbit::LeafNode;
 use agnostic_orderbook::orderbook::OrderBookState;
@@ -101,20 +102,28 @@ pub mod auction_house {
 
         match open_orders.side {
             Side::Ask => {
-                // TODO transfer total_base_qty worth of base currency from base vault to user's account
-
                 open_orders.base_token_locked = open_orders
                     .base_token_locked
                     .checked_sub(total_base_qty)
                     .unwrap();
+                token::transfer(
+                    ctx.accounts
+                        .transfer_base_vault()
+                        .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
+                    total_base_qty,
+                )?;
             }
             Side::Bid => {
-                // TODO transfer total_quote_qty worth of quote currency from quote vault to user's account
-
                 open_orders.quote_token_locked = open_orders
                     .quote_token_locked
                     .checked_sub(total_quote_qty)
                     .unwrap();
+                token::transfer(
+                    ctx.accounts
+                        .transfer_quote_vault()
+                        .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
+                    total_quote_qty,
+                )?;
             }
         }
 
@@ -152,20 +161,24 @@ pub mod auction_house {
 
         match open_orders.side {
             Side::Ask => {
-                // TODO transfer token quantity worth of base currency from the user's account
-
                 open_orders.base_token_locked = open_orders
                     .base_token_locked
                     .checked_add(token_qty)
                     .unwrap();
+                token::transfer(
+                    ctx.accounts.transfer_user_base(),
+                    token_qty,
+                )?;
             }
             Side::Bid => {
-                // TODO transfer token quantity worth of quote currency from the user's account
-
                 open_orders.quote_token_locked = open_orders
                     .quote_token_locked
                     .checked_add(token_qty)
                     .unwrap();
+                token::transfer(
+                    ctx.accounts.transfer_user_quote(),
+                    token_qty,
+                )?;
             }
         }
 
@@ -181,20 +194,28 @@ pub mod auction_house {
 
         match open_orders.side {
             Side::Ask => {
-                // TODO transfer total_base_qty worth of base currency from base vault to user's account
-
                 open_orders.base_token_locked = open_orders
                     .base_token_locked
                     .checked_sub(this_order.token_qty)
                     .unwrap();
+                token::transfer(
+                    ctx.accounts
+                        .transfer_base_vault()
+                        .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
+                        this_order.token_qty,
+                )?;
             }
             Side::Bid => {
-                // TODO transfer total_quote_qty worth of quote currency from quote vault to user's account
-
                 open_orders.quote_token_locked = open_orders
                     .quote_token_locked
                     .checked_sub(this_order.token_qty)
                     .unwrap();
+                token::transfer(
+                    ctx.accounts
+                        .transfer_quote_vault()
+                        .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
+                        this_order.token_qty,
+                )?;
             }
         }
 

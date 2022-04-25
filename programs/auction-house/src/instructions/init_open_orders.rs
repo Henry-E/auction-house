@@ -64,7 +64,9 @@ impl InitOpenOrders<'_> {
         let clock = Clock::get()?;
         let auction = self.auction.clone().into_inner();
 
-        is_order_phase_active(clock, &auction)?;
+        if !is_order_phase_active(clock, &auction) {
+            return Err(error!(CustomErrors::OrderPhaseNotActive));
+        }
         // TODO make the max_order value = 8 here a constant once we know
         // how many orders can be decrypted within 200k compute units
         if max_orders < 1 && 8 < max_orders {
