@@ -324,6 +324,7 @@ pub mod auction_house {
         Err(error!(CustomErrors::NotImplemented))
     }
 
+    #[access_control(ctx.accounts.access_control())]
     pub fn calculate_clearing_price(
         ctx: Context<CalculateClearingPrice>,
         limit: u16,
@@ -756,6 +757,7 @@ pub mod auction_house {
         // Ok(())
     }
 
+    #[access_control(ctx.accounts.access_control())]
     pub fn settle_and_close_open_orders(ctx: Context<SettleAndCloseOpenOrders>) -> Result<()> {
         let open_orders = &mut *ctx.accounts.open_orders;
 
@@ -767,22 +769,36 @@ pub mod auction_house {
             base_amount_returned: open_orders.base_token_free,
         });
 
-        if open_orders.quote_token_free > 0 {
-            // TODO
-            // Transfer quote_token_free from vault to user
-        }
-        if open_orders.base_token_free > 0 {
-            // TODO
-            // Transfer base_token_free from vault to user
-        }
-
+        // We have to set open orders.free values to 0 before calling the CPI
+        // because of an immutable borrow compile error. Technically it would be
+        // safe to omit setting the free values to 0 because of the anchor 
+        // account close discriminator but better to be totally sure.
+        let quote_token_free = open_orders.quote_token_free;
+        let base_token_free = open_orders.base_token_free;
         open_orders.quote_token_free = 0;
         open_orders.base_token_free = 0;
+        if quote_token_free > 0 {
+            token::transfer(
+                ctx.accounts
+                    .transfer_quote_vault()
+                    .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
+                    quote_token_free,
+            )?;
+        }
+        if base_token_free > 0 {
+            token::transfer(
+                ctx.accounts
+                    .transfer_base_vault()
+                    .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
+                    base_token_free,
+            )?;
+        }
 
         Err(error!(CustomErrors::NotImplemented))
         // Ok(())
     }
 
+    #[access_control(ctx.accounts.access_control())]
     pub fn close_aob_accounts(ctx: Context<CloseAobAccounts>) -> Result<()> {
         let auctioneer_lamports = ctx.accounts.auctioneer.lamports();
         **ctx.accounts.auctioneer.lamports.borrow_mut() = auctioneer_lamports

@@ -574,6 +574,27 @@ impl SettleAndCloseOpenOrders<'_> {
     }
 }
 
+impl<'info> SettleAndCloseOpenOrders<'info> {
+    pub fn transfer_base_vault(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.base_vault.to_account_info(),
+            to: self.user_base.to_account_info(),
+            authority: self.auction.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+    pub fn transfer_quote_vault(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
+        let program = self.token_program.to_account_info();
+        let accounts = token::Transfer {
+            from: self.quote_vault.to_account_info(),
+            to: self.user_quote.to_account_info(),
+            authority: self.auction.to_account_info(),
+        };
+        CpiContext::new(program, accounts)
+    }
+}
+
 #[derive(Accounts)]
 pub struct CloseAobAccounts<'info> {
     // Technically doesn't need to be a signer for this function
