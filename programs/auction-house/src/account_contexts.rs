@@ -212,7 +212,7 @@ impl NewEncryptedOrder<'_> {
         Ok(())
     }
 
-    pub fn access_control_cancel_encrypted_order(&self, order_idx: usize) -> Result<()> {
+    pub fn access_control_cancel_encrypted_order(&self, order_idx: u8) -> Result<()> {
         let clock = Clock::get()?;
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
@@ -229,7 +229,7 @@ impl NewEncryptedOrder<'_> {
         }
         encrypted_orders_only(&auction, &open_orders)?;
 
-        if self.open_orders.num_orders <= order_idx as u8 {
+        if self.open_orders.num_orders <= order_idx {
             return Err(error!(CustomErrors::OrderIdxNotValid));
         }
 

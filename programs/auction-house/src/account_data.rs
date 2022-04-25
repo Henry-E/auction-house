@@ -63,15 +63,15 @@ macro_rules! auction_seeds {
 
 pub use auction_seeds;
 
-// #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
-// pub enum FinalPriceTypes {
-//     BestBid,
-//     Midpoint,
-// }
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
+pub enum FinalPriceTypes {
+    BestBid,
+    Midpoint,
+}
 
-// impl Default for FinalPriceTypes {
-//     fn default() -> Self { FinalPriceTypes::BestBid }
-// }
+impl Default for FinalPriceTypes {
+    fn default() -> Self { FinalPriceTypes::BestBid }
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct AobBumps {
@@ -149,3 +149,23 @@ pub struct OrderHistory {
     pub quote_amount_returned: u64,
     pub base_amount_returned: u64,
 }
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub enum LocalSide {
+    Bid,
+    Ask,
+}
+
+// impl LocalSide {
+//     /// Helper function to get the opposite side.
+//     pub fn opposite(&self) -> Self {
+//         match self {
+//             LocalSide::Bid => LocalSide::Ask,
+//             LocalSide::Ask => LocalSide::Bid,
+//         }
+//     }
+// }
+
+// impl Default for LocalSide {
+//     fn default() -> Self { Side::Bid }
+// }

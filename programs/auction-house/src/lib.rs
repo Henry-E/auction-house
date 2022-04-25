@@ -187,9 +187,9 @@ pub mod auction_house {
     }
 
     #[access_control(ctx.accounts.access_control_cancel_encrypted_order(order_idx))]
-    pub fn cancel_encrypted_order(ctx: Context<NewEncryptedOrder>, order_idx: usize) -> Result<()> {
+    pub fn cancel_encrypted_order(ctx: Context<NewEncryptedOrder>, order_idx: u8) -> Result<()> {
         let open_orders = &mut *ctx.accounts.open_orders;
-        let this_order = open_orders.encrypted_orders.remove(order_idx);
+        let this_order = open_orders.encrypted_orders.remove(order_idx as usize);
         open_orders.num_orders = open_orders.num_orders.checked_sub(1).unwrap();
 
         match open_orders.side {
