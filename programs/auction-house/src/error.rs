@@ -74,6 +74,8 @@ pub enum CustomErrors {
     IdenticalEncryptedOrderFound,
     #[msg("Not enough tokens provided for the order requested. For simplicity of processing, this prevents all encrypted orders in the open orders account being processed. You can cancel the encrypted orders after the decryption period has finished.")]
     InsufficientTokensForOrder,
+    #[msg("Failed to find the current ask/bid key in the orderbook, this should never happen!")]
+    NodeKeyNotFound,
     #[msg(
         "Can't close an open orders account that has open orders, try cancelling all orders first"
     )]

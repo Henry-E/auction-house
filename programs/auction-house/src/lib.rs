@@ -364,13 +364,19 @@ pub mod auction_house {
                 }
             };
             auction.current_ask_key = current_ask.key;
+            if current_ask.price() > current_bid.price() {
+                msg!("Orders prices crossed before clearing even started");
+                auction.has_found_clearing_price = true;
+                return Ok(()); 
+            }
+
         } else {
-            // TODO add a fake serialization function that iterates over the iterators
-            // until it reaches the current bid/ask key. And errors if it can't find them
-            // current_bid = bid_iter.next().unwrap();
-            // current_ask = ask_iter.next().unwrap();
-            msg!("intermediate serialization not implemented yet");
-            return Err(error!(CustomErrors::NotImplemented));
+            current_bid = bid_iter
+                .find(|this_node| this_node.key == auction.current_bid_key)
+                .ok_or(error!(CustomErrors::NodeKeyNotFound))?;
+            current_ask = ask_iter
+                .find(|this_node| this_node.key == auction.current_ask_key)
+                .ok_or(error!(CustomErrors::NodeKeyNotFound))?;
         }
 
         for _ in 0..limit {
