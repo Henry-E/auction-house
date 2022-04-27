@@ -11,7 +11,7 @@ use agnostic_orderbook::critbit::Slab;
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::state::{
-    AccountTag, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN,
+    AccountTag, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
 };
 use agnostic_orderbook::utils::fp32_mul;
 

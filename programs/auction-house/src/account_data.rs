@@ -6,7 +6,7 @@ use std::ops::Deref;
 
 // use agnostic_orderbook;
 use agnostic_orderbook::processor::new_order::Params;
-use agnostic_orderbook::state::{SelfTradeBehavior, Side};
+use agnostic_orderbook::state::{SelfTradeBehavior, Side as AobSide};
 
 use crate::error::CustomErrors;
 
@@ -124,7 +124,7 @@ impl OpenOrders {
             max_base_qty,
             max_quote_qty,
             limit_price,
-            side: self.side,
+            side: AobSide::from(self.side),
             callback_info: Vec::new(),
             post_only: true,
             post_allowed: true,
@@ -133,6 +133,25 @@ impl OpenOrders {
             match_limit: 1,
         }
     }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq)]
+pub enum Side {
+    Bid,
+    Ask,
+}
+
+impl From<Side> for AobSide {
+    fn from(side: Side) -> AobSide {
+        match side {
+            Side::Bid => AobSide::Bid,
+            Side::Ask => AobSide::Ask,
+        }
+    }
+}
+
+impl Default for Side {
+    fn default() -> Self { Side::Bid }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -150,22 +169,3 @@ pub struct OrderHistory {
     pub base_amount_returned: u64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub enum LocalSide {
-    Bid,
-    Ask,
-}
-
-// impl LocalSide {
-//     /// Helper function to get the opposite side.
-//     pub fn opposite(&self) -> Self {
-//         match self {
-//             LocalSide::Bid => LocalSide::Ask,
-//             LocalSide::Ask => LocalSide::Bid,
-//         }
-//     }
-// }
-
-// impl Default for LocalSide {
-//     fn default() -> Self { Side::Bid }
-// }

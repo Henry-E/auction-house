@@ -5,7 +5,7 @@ use agnostic_orderbook::critbit::LeafNode;
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::state::{
-    get_side_from_order_id, Event, EventQueue, EventQueueHeader, Side, EVENT_QUEUE_HEADER_LEN,
+    get_side_from_order_id, Event, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
 };
 use agnostic_orderbook::utils::{fp32_div, fp32_mul};
 
@@ -338,10 +338,10 @@ pub mod auction_house {
             CALLBACK_ID_LEN,
         )?;
 
-        let bid_slab = order_book.get_tree(Side::Bid);
+        let bid_slab = order_book.get_tree(AobSide::Bid);
         let mut bid_iter = bid_slab.clone().into_iter(false);
         let mut current_bid: LeafNode;
-        let ask_slab = order_book.get_tree(Side::Ask);
+        let ask_slab = order_book.get_tree(AobSide::Ask);
         let mut ask_iter = ask_slab.clone().into_iter(true);
         let mut current_ask: LeafNode;
 
@@ -488,11 +488,11 @@ pub mod auction_house {
         )?;
 
         // Process all the bids first, then move onto the asks
-        let side: Side;
+        let side: AobSide;
         if order_book.bids_is_empty() {
-            side = Side::Ask;
+            side = AobSide::Ask;
         } else {
-            side = Side::Bid;
+            side = AobSide::Bid;
         }
 
         for _ in 0..limit {
@@ -511,7 +511,7 @@ pub mod auction_house {
                 .as_leaf()
                 .unwrap();
             match side {
-                Side::Ask => {
+                AobSide::Ask => {
                     let mut fill_size: u64 = 0;
                     if auction.remaining_ask_fills > 0 {
                         fill_size = cmp::min(bbo_node.base_quantity, auction.remaining_ask_fills);
@@ -552,7 +552,7 @@ pub mod auction_house {
                         .remove_by_key(bbo_node.key)
                         .unwrap();
                 }
-                Side::Bid => {
+                AobSide::Bid => {
                     let mut fill_size: u64 = 0;
                     if auction.remaining_bid_fills > 0 {
                         fill_size = cmp::min(bbo_node.base_quantity, auction.remaining_bid_fills);
@@ -661,11 +661,11 @@ pub mod auction_house {
                     // 1. Easy to check the sides match
                     // 2. Could check PDA but would prefer to do at the start
                     //  of the function, not in the loop, too inefficient
-                    if user_open_orders.side != user_side {
+                    if AobSide::from(user_open_orders.side) != user_side {
                         return Err(error!(CustomErrors::UserSideDiffFromEventSide));
                     }
                     match user_side {
-                        Side::Ask => {
+                        AobSide::Ask => {
                             user_open_orders.quote_token_free = user_open_orders
                                 .quote_token_free
                                 .checked_add(quote_size)
@@ -675,7 +675,7 @@ pub mod auction_house {
                                 .checked_sub(base_size)
                                 .unwrap();
                         }
-                        Side::Bid => {
+                        AobSide::Bid => {
                             user_open_orders.base_token_free = user_open_orders
                                 .base_token_free
                                 .checked_add(base_size)
@@ -710,11 +710,11 @@ pub mod auction_house {
                     // 1. Easy to check the sides match
                     // 2. Could check PDA but would prefer to do at the start
                     //  of the function, not in the loop, too inefficient
-                    if user_open_orders.side != user_side {
+                    if AobSide::from(user_open_orders.side) != user_side {
                         return Err(error!(CustomErrors::UserSideDiffFromEventSide));
                     }
                     match user_side {
-                        Side::Ask => {
+                        AobSide::Ask => {
                             user_open_orders.base_token_free = user_open_orders
                                 .base_token_free
                                 .checked_add(base_size)
@@ -724,7 +724,7 @@ pub mod auction_house {
                                 .checked_sub(base_size)
                                 .unwrap();
                         }
-                        Side::Bid => {
+                        AobSide::Bid => {
                             let price = (order_id >> 64) as u64;
                             let quote_size = fp32_mul(base_size, price);
                             user_open_orders.quote_token_free = user_open_orders

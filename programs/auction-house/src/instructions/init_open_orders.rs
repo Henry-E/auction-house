@@ -7,7 +7,7 @@ use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
 
-use agnostic_orderbook::state::Side;
+use agnostic_orderbook::state::{Side as AobSide};
 
 // Flexible on design decisions such as:
 // should we check that the user has the associated token accounts that will
