@@ -9,7 +9,7 @@ export interface OpenOrdersFields {
   authority: PublicKey
   maxOrders: number
   side: types.SideKind
-  publicKey: Array<number>
+  naclPubkey: Array<number>
   encryptedOrders: Array<types.EncryptedOrderFields>
   quoteTokenLocked: BN
   quoteTokenFree: BN
@@ -24,7 +24,7 @@ export interface OpenOrdersJSON {
   authority: string
   maxOrders: number
   side: types.SideJSON
-  publicKey: Array<number>
+  naclPubkey: Array<number>
   encryptedOrders: Array<types.EncryptedOrderJSON>
   quoteTokenLocked: string
   quoteTokenFree: string
@@ -39,7 +39,7 @@ export class OpenOrders {
   readonly authority: PublicKey
   readonly maxOrders: number
   readonly side: types.SideKind
-  readonly publicKey: Array<number>
+  readonly naclPubkey: Array<number>
   readonly encryptedOrders: Array<types.EncryptedOrder>
   readonly quoteTokenLocked: BN
   readonly quoteTokenFree: BN
@@ -57,7 +57,7 @@ export class OpenOrders {
     borsh.publicKey("authority"),
     borsh.u8("maxOrders"),
     types.Side.layout("side"),
-    borsh.vecU8("publicKey"),
+    borsh.vecU8("naclPubkey"),
     borsh.vec(types.EncryptedOrder.layout(), "encryptedOrders"),
     borsh.u64("quoteTokenLocked"),
     borsh.u64("quoteTokenFree"),
@@ -72,7 +72,7 @@ export class OpenOrders {
     this.authority = fields.authority
     this.maxOrders = fields.maxOrders
     this.side = fields.side
-    this.publicKey = fields.publicKey
+    this.naclPubkey = fields.naclPubkey
     this.encryptedOrders = fields.encryptedOrders.map(
       (item) => new types.EncryptedOrder({ ...item })
     )
@@ -130,7 +130,7 @@ export class OpenOrders {
       authority: dec.authority,
       maxOrders: dec.maxOrders,
       side: types.Side.fromDecoded(dec.side),
-      publicKey: Array.from(dec.publicKey),
+      naclPubkey: Array.from(dec.naclPubkey),
       encryptedOrders: dec.encryptedOrders.map((item) =>
         types.EncryptedOrder.fromDecoded(item)
       ),
@@ -149,7 +149,7 @@ export class OpenOrders {
       authority: this.authority.toString(),
       maxOrders: this.maxOrders,
       side: this.side.toJSON(),
-      publicKey: this.publicKey,
+      naclPubkey: this.naclPubkey,
       encryptedOrders: this.encryptedOrders.map((item) => item.toJSON()),
       quoteTokenLocked: this.quoteTokenLocked.toString(),
       quoteTokenFree: this.quoteTokenFree.toString(),
@@ -166,7 +166,7 @@ export class OpenOrders {
       authority: new PublicKey(obj.authority),
       maxOrders: obj.maxOrders,
       side: types.Side.fromJSON(obj.side),
-      publicKey: obj.publicKey,
+      naclPubkey: obj.naclPubkey,
       encryptedOrders: obj.encryptedOrders.map((item) =>
         types.EncryptedOrder.fromJSON(item)
       ),

@@ -22,6 +22,7 @@ pub struct Auction {
     pub end_decryption_phase: i64,
     pub are_asks_encrypted: bool,
     pub are_bids_encrypted: bool,
+    pub nacl_pubkey: Vec<u8>,
     // pub final_price_type: FinalPriceTypes,
     // Orderbook details
     pub event_queue: Pubkey,
@@ -91,7 +92,7 @@ pub struct OpenOrders {
     // TODO replace with a Side enum possibly
     pub side: Side,
     // Encryption stuff
-    pub public_key: Vec<u8>,
+    pub nacl_pubkey: Vec<u8>,
     pub encrypted_orders: Vec<EncryptedOrder>, // Probably max 4 - 8 orders
     // AOB stuff
     pub quote_token_locked: u64,

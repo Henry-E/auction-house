@@ -9,6 +9,7 @@ export interface InitAuctionArgsFields {
   endDecryptionPhase: BN
   areAsksEncrypted: boolean
   areBidsEncrypted: boolean
+  naclPubkey: Array<number>
   minBaseOrderSize: BN
   tickSize: BN
 }
@@ -19,6 +20,7 @@ export interface InitAuctionArgsJSON {
   endDecryptionPhase: string
   areAsksEncrypted: boolean
   areBidsEncrypted: boolean
+  naclPubkey: Array<number>
   minBaseOrderSize: string
   tickSize: string
 }
@@ -29,6 +31,7 @@ export class InitAuctionArgs {
   readonly endDecryptionPhase: BN
   readonly areAsksEncrypted: boolean
   readonly areBidsEncrypted: boolean
+  readonly naclPubkey: Array<number>
   readonly minBaseOrderSize: BN
   readonly tickSize: BN
 
@@ -38,6 +41,7 @@ export class InitAuctionArgs {
     this.endDecryptionPhase = fields.endDecryptionPhase
     this.areAsksEncrypted = fields.areAsksEncrypted
     this.areBidsEncrypted = fields.areBidsEncrypted
+    this.naclPubkey = fields.naclPubkey
     this.minBaseOrderSize = fields.minBaseOrderSize
     this.tickSize = fields.tickSize
   }
@@ -50,6 +54,7 @@ export class InitAuctionArgs {
         borsh.i64("endDecryptionPhase"),
         borsh.bool("areAsksEncrypted"),
         borsh.bool("areBidsEncrypted"),
+        borsh.vecU8("naclPubkey"),
         borsh.u64("minBaseOrderSize"),
         borsh.u64("tickSize"),
       ],
@@ -65,6 +70,7 @@ export class InitAuctionArgs {
       endDecryptionPhase: obj.endDecryptionPhase,
       areAsksEncrypted: obj.areAsksEncrypted,
       areBidsEncrypted: obj.areBidsEncrypted,
+      naclPubkey: Array.from(obj.naclPubkey),
       minBaseOrderSize: obj.minBaseOrderSize,
       tickSize: obj.tickSize,
     })
@@ -77,6 +83,7 @@ export class InitAuctionArgs {
       endDecryptionPhase: fields.endDecryptionPhase,
       areAsksEncrypted: fields.areAsksEncrypted,
       areBidsEncrypted: fields.areBidsEncrypted,
+      naclPubkey: Buffer.from(fields.naclPubkey),
       minBaseOrderSize: fields.minBaseOrderSize,
       tickSize: fields.tickSize,
     }
@@ -89,6 +96,7 @@ export class InitAuctionArgs {
       endDecryptionPhase: this.endDecryptionPhase.toString(),
       areAsksEncrypted: this.areAsksEncrypted,
       areBidsEncrypted: this.areBidsEncrypted,
+      naclPubkey: this.naclPubkey,
       minBaseOrderSize: this.minBaseOrderSize.toString(),
       tickSize: this.tickSize.toString(),
     }
@@ -101,6 +109,7 @@ export class InitAuctionArgs {
       endDecryptionPhase: new BN(obj.endDecryptionPhase),
       areAsksEncrypted: obj.areAsksEncrypted,
       areBidsEncrypted: obj.areBidsEncrypted,
+      naclPubkey: obj.naclPubkey,
       minBaseOrderSize: new BN(obj.minBaseOrderSize),
       tickSize: new BN(obj.tickSize),
     })

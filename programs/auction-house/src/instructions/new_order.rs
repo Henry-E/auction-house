@@ -54,9 +54,9 @@ pub struct NewOrder<'info> {
     pub asks: UncheckedAccount<'info>,
     // Token accounts
     #[account(address = auction.quote_mint)]
-    pub quote_mint: Account<'info, Mint>,
+    pub quote_mint: Box<Account<'info, Mint>>,
     #[account(address = auction.base_mint)]
-    pub base_mint: Account<'info, Mint>,
+    pub base_mint: Box<Account<'info, Mint>>,
     #[account(
         associated_token::mint = quote_mint,
         associated_token::authority = user,

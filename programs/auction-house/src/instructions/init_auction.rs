@@ -21,7 +21,7 @@ pub struct InitAuction<'info> {
     // An account struct with all of the auction options
     #[account(
         init,
-        seeds = [AUCTION.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [AUCTION.as_bytes(), auctioneer.key().as_ref()],
         bump,
         space = 1000,
         payer = auctioneer,
@@ -43,7 +43,7 @@ pub struct InitAuction<'info> {
         init,
         token::mint = base_mint,
         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [QUOTE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
     )]
@@ -52,7 +52,7 @@ pub struct InitAuction<'info> {
         init,
         token::mint = base_mint,
         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [BASE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
     )]
@@ -65,7 +65,7 @@ pub struct InitAuction<'info> {
 }
 
 impl InitAuction<'_> {
-    pub fn validate_args(args: InitAuctionArgs) -> Result<()> {
+    pub fn validate_args(args: &InitAuctionArgs) -> Result<()> {
         let clock = Clock::get()?;
         // Orders phase ends before it starts
         if args.end_order_phase <= args.start_order_phase {
@@ -90,19 +90,20 @@ impl InitAuction<'_> {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitAuctionArgs {
     pub start_order_phase: i64,
     pub end_order_phase: i64,
     pub end_decryption_phase: i64,
     pub are_asks_encrypted: bool,
     pub are_bids_encrypted: bool,
+    pub nacl_pubkey: Vec<u8>, // 32 bytes
     pub min_base_order_size: u64,
     pub tick_size: u64,
 }
 
 ///
-pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
+pub fn init_auction(ctx: Context<InitAuction>, args: &InitAuctionArgs) -> Result<()> {
     ctx.accounts.auction.set_inner(Auction {
         bump: *ctx.bumps.get("auction").unwrap(),
         bumps: AobBumps {

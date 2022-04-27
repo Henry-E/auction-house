@@ -13,6 +13,7 @@ export interface AuctionFields {
   endDecryptionPhase: BN
   areAsksEncrypted: boolean
   areBidsEncrypted: boolean
+  naclPubkey: Array<number>
   eventQueue: PublicKey
   bids: PublicKey
   asks: PublicKey
@@ -45,6 +46,7 @@ export interface AuctionJSON {
   endDecryptionPhase: string
   areAsksEncrypted: boolean
   areBidsEncrypted: boolean
+  naclPubkey: Array<number>
   eventQueue: string
   bids: string
   asks: string
@@ -77,6 +79,7 @@ export class Auction {
   readonly endDecryptionPhase: BN
   readonly areAsksEncrypted: boolean
   readonly areBidsEncrypted: boolean
+  readonly naclPubkey: Array<number>
   readonly eventQueue: PublicKey
   readonly bids: PublicKey
   readonly asks: PublicKey
@@ -112,6 +115,7 @@ export class Auction {
     borsh.i64("endDecryptionPhase"),
     borsh.bool("areAsksEncrypted"),
     borsh.bool("areBidsEncrypted"),
+    borsh.vecU8("naclPubkey"),
     borsh.publicKey("eventQueue"),
     borsh.publicKey("bids"),
     borsh.publicKey("asks"),
@@ -144,6 +148,7 @@ export class Auction {
     this.endDecryptionPhase = fields.endDecryptionPhase
     this.areAsksEncrypted = fields.areAsksEncrypted
     this.areBidsEncrypted = fields.areBidsEncrypted
+    this.naclPubkey = fields.naclPubkey
     this.eventQueue = fields.eventQueue
     this.bids = fields.bids
     this.asks = fields.asks
@@ -217,6 +222,7 @@ export class Auction {
       endDecryptionPhase: dec.endDecryptionPhase,
       areAsksEncrypted: dec.areAsksEncrypted,
       areBidsEncrypted: dec.areBidsEncrypted,
+      naclPubkey: Array.from(dec.naclPubkey),
       eventQueue: dec.eventQueue,
       bids: dec.bids,
       asks: dec.asks,
@@ -251,6 +257,7 @@ export class Auction {
       endDecryptionPhase: this.endDecryptionPhase.toString(),
       areAsksEncrypted: this.areAsksEncrypted,
       areBidsEncrypted: this.areBidsEncrypted,
+      naclPubkey: this.naclPubkey,
       eventQueue: this.eventQueue.toString(),
       bids: this.bids.toString(),
       asks: this.asks.toString(),
@@ -285,6 +292,7 @@ export class Auction {
       endDecryptionPhase: new BN(obj.endDecryptionPhase),
       areAsksEncrypted: obj.areAsksEncrypted,
       areBidsEncrypted: obj.areBidsEncrypted,
+      naclPubkey: obj.naclPubkey,
       eventQueue: new PublicKey(obj.eventQueue),
       bids: new PublicKey(obj.bids),
       asks: new PublicKey(obj.asks),

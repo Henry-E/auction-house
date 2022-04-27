@@ -6,7 +6,7 @@ import { PROGRAM_ID } from "../programId"
 
 export interface NewEncryptedOrderArgs {
   tokenQty: BN
-  publicKey: Array<number>
+  naclPubkey: Array<number>
   nonce: Array<number>
   cipherText: Array<number>
 }
@@ -26,7 +26,7 @@ export interface NewEncryptedOrderAccounts {
 
 export const layout = borsh.struct([
   borsh.u64("tokenQty"),
-  borsh.vecU8("publicKey"),
+  borsh.vecU8("naclPubkey"),
   borsh.vecU8("nonce"),
   borsh.vecU8("cipherText"),
 ])
@@ -52,7 +52,7 @@ export function newEncryptedOrder(
   const len = layout.encode(
     {
       tokenQty: args.tokenQty,
-      publicKey: Buffer.from(args.publicKey),
+      naclPubkey: Buffer.from(args.naclPubkey),
       nonce: Buffer.from(args.nonce),
       cipherText: Buffer.from(args.cipherText),
     },

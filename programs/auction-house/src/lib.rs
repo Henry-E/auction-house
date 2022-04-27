@@ -51,9 +51,9 @@ pub mod auction_house {
         Ok(())
     }
 
-    #[access_control(InitAuction::validate_args(args))]
+    #[access_control(InitAuction::validate_args(&args))]
     pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
-        instructions::init_auction(ctx, args)
+        instructions::init_auction(ctx, &args)
     }
 
     #[access_control(ctx.accounts.access_control(max_orders))]
@@ -131,17 +131,17 @@ pub mod auction_house {
         // Ok(())
     }
 
-    #[access_control(ctx.accounts.access_control_new_encrypted_order(&public_key))]
+    #[access_control(ctx.accounts.access_control_new_encrypted_order(&nacl_pubkey))]
     pub fn new_encrypted_order(
         ctx: Context<NewEncryptedOrder>,
         token_qty: u64,
-        public_key: Vec<u8>,
+        nacl_pubkey: Vec<u8>,
         nonce: Vec<u8>,
         cipher_text: Vec<u8>,
     ) -> Result<()> {
         let open_orders = &mut *ctx.accounts.open_orders;
-        if open_orders.public_key.is_empty() {
-            open_orders.public_key = public_key;
+        if open_orders.nacl_pubkey.is_empty() {
+            open_orders.nacl_pubkey = nacl_pubkey;
         }
         // TODO move to access control probably, not sure about reference stuff for the vars nonce and cipher text
         if open_orders

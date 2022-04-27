@@ -163,9 +163,9 @@ pub struct NewEncryptedOrder<'info> {
     pub open_orders: Box<Account<'info, OpenOrders>>,
     // Token accounts
     #[account(address = auction.quote_mint)]
-    pub quote_mint: Account<'info, Mint>,
+    pub quote_mint: Box<Account<'info, Mint>>,
     #[account(address = auction.base_mint)]
-    pub base_mint: Account<'info, Mint>,
+    pub base_mint: Box<Account<'info, Mint>>,
     #[account(
         associated_token::mint = quote_mint,
         associated_token::authority = user,
@@ -195,7 +195,7 @@ pub struct NewEncryptedOrder<'info> {
 }
 
 impl NewEncryptedOrder<'_> {
-    pub fn access_control_new_encrypted_order(&self, public_key: &Vec<u8>) -> Result<()> {
+    pub fn access_control_new_encrypted_order(&self, nacl_pubkey: &Vec<u8>) -> Result<()> {
         let clock = Clock::get()?;
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
@@ -206,7 +206,7 @@ impl NewEncryptedOrder<'_> {
         encrypted_orders_only(&auction, &open_orders)?;
         has_space_for_new_orders(&open_orders)?;
 
-        if !self.open_orders.public_key.is_empty() && self.open_orders.public_key != *public_key {
+        if !self.open_orders.nacl_pubkey.is_empty() && self.open_orders.nacl_pubkey != *nacl_pubkey {
             return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch));
         }
         Ok(())
@@ -540,9 +540,9 @@ pub struct SettleAndCloseOpenOrders<'info> {
     )]
     pub base_vault: Account<'info, TokenAccount>,
     #[account(address = auction.quote_mint)]
-    pub quote_mint: Account<'info, Mint>,
+    pub quote_mint: Box<Account<'info, Mint>>,
     #[account(address = auction.base_mint)]
-    pub base_mint: Account<'info, Mint>,
+    pub base_mint: Box<Account<'info, Mint>>,
     #[account(
         associated_token::mint = quote_mint,
         associated_token::authority = user,

@@ -34,6 +34,7 @@ export type CustomError =
   | EncryptionPubkeysDoNotMatch
   | IdenticalEncryptedOrderFound
   | InsufficientTokensForOrder
+  | NodeKeyNotFound
   | OpenOrdersHasOpenOrders
   | OpenOrdersHasLockedTokens
   | OrderBookNotEmpty
@@ -404,49 +405,62 @@ export class InsufficientTokensForOrder extends Error {
   }
 }
 
-export class OpenOrdersHasOpenOrders extends Error {
+export class NodeKeyNotFound extends Error {
   readonly code = 6035
+  readonly name = "NodeKeyNotFound"
+  readonly msg =
+    "Failed to find the current ask/bid key in the orderbook, this should never happen!"
+
+  constructor() {
+    super(
+      "6035: Failed to find the current ask/bid key in the orderbook, this should never happen!"
+    )
+  }
+}
+
+export class OpenOrdersHasOpenOrders extends Error {
+  readonly code = 6036
   readonly name = "OpenOrdersHasOpenOrders"
   readonly msg =
     "Can't close an open orders account that has open orders, try cancelling all orders first"
 
   constructor() {
     super(
-      "6035: Can't close an open orders account that has open orders, try cancelling all orders first"
+      "6036: Can't close an open orders account that has open orders, try cancelling all orders first"
     )
   }
 }
 
 export class OpenOrdersHasLockedTokens extends Error {
-  readonly code = 6036
+  readonly code = 6037
   readonly name = "OpenOrdersHasLockedTokens"
   readonly msg =
     "Can't close an open orders account that has locked tokens, try cancelling all orders first"
 
   constructor() {
     super(
-      "6036: Can't close an open orders account that has locked tokens, try cancelling all orders first"
+      "6037: Can't close an open orders account that has locked tokens, try cancelling all orders first"
     )
   }
 }
 
 export class OrderBookNotEmpty extends Error {
-  readonly code = 6037
+  readonly code = 6038
   readonly name = "OrderBookNotEmpty"
   readonly msg = "Order book should be empty"
 
   constructor() {
-    super("6037: Order book should be empty")
+    super("6038: Order book should be empty")
   }
 }
 
 export class EventQueueNotEmpty extends Error {
-  readonly code = 6038
+  readonly code = 6039
   readonly name = "EventQueueNotEmpty"
   readonly msg = "Event queue should be empty"
 
   constructor() {
-    super("6038: Event queue should be empty")
+    super("6039: Event queue should be empty")
   }
 }
 
@@ -523,12 +537,14 @@ export function fromCode(code: number): CustomError | null {
     case 6034:
       return new InsufficientTokensForOrder()
     case 6035:
-      return new OpenOrdersHasOpenOrders()
+      return new NodeKeyNotFound()
     case 6036:
-      return new OpenOrdersHasLockedTokens()
+      return new OpenOrdersHasOpenOrders()
     case 6037:
-      return new OrderBookNotEmpty()
+      return new OpenOrdersHasLockedTokens()
     case 6038:
+      return new OrderBookNotEmpty()
+    case 6039:
       return new EventQueueNotEmpty()
   }
 
