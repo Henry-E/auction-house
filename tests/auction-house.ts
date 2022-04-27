@@ -1,7 +1,7 @@
 import * as anchor from "@project-serum/anchor";
 import { BN } from "@project-serum/anchor";
 import { Program, ProgramError } from "@project-serum/anchor";
-import { createAssociatedTokenAccount, createMint, createMintToCheckedInstruction, mintTo, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { createAssociatedTokenAccount, createMint, createMintToCheckedInstruction, getAccount, getMint, mintTo, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { AuctionHouse } from "../target/types/auction_house";
 import { PublicKey, Keypair } from "@solana/web3.js";
 import nacl from "tweetnacl";
@@ -10,6 +10,7 @@ import * as genInstr from "../generated/instructions";
 import * as genTypes from "../generated/types";
 import * as genAccs from "../generated/accounts";
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
+import { assert } from "chai";
 // import { Side } from "../generated/types";
 
 describe("auction-house", () => {
@@ -34,7 +35,7 @@ describe("auction-house", () => {
   const asksBytes = 64000;
   
   let auction: Auction;
-  let users: Array<User>;
+  let users: Array<User> = [];
   let startOrderPhase: BN;
 
   it("inits the auction", async() => {
@@ -51,6 +52,31 @@ describe("auction-house", () => {
       {args: {...auction}}, {...auction}
     ));
     await provider.send(tx, [auction.eventQueueKeypair, auction.bidsKeypair, auction.asksKeypair]);
+
+    let thisAuction = await genAccs.Auction.fetch(provider.connection, auction.auction);
+    assert.isTrue(thisAuction.auctionId.toString() == auctionId.toString(), "auction Ids match");
+    assert.isTrue(thisAuction.authority.toString() == wallet.publicKey.toString(), "authorities match");
+  });
+
+  it("init open orders", async() => {
+    let thisAskUser = await initUser(provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(1_000_000), new anchor.BN(0));
+    let thisBidUser = await initUser(provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(1_000_000));
+    users.push(thisAskUser, thisBidUser);
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.initOpenOrders(
+      {...thisAskUser}, {...thisAskUser, ...auction}
+    ));
+    await provider.send(tx, [thisAskUser.userKeypair], {skipPreflight: true});
+    tx = new anchor.web3.Transaction;
+    tx.add(genInstr.initOpenOrders(
+      {...thisBidUser}, {...thisBidUser, ...auction}
+    ));
+    await provider.send(tx, [thisBidUser.userKeypair], {skipPreflight: true});
+
+    let askOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisAskUser.openOrders);
+    let bidOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisBidUser.openOrders);
+    assert.isTrue(askOpenOrders.authority.toString() == thisAskUser.user.toString(), "check ask open orders init correctly");
+    assert.isTrue(bidOpenOrders.authority.toString() == thisBidUser.user.toString(), "check bid open orders init correctly");
   });
 
   interface Auction {
@@ -156,9 +182,10 @@ describe("auction-house", () => {
     userKeypair: Keypair,
     user: PublicKey,
     openOrders: PublicKey,
+    orderHistory: PublicKey,
     userBase: PublicKey,
     userQuote: PublicKey,
-    naclPubkey: Uint8Array,
+    naclPubkey: Array<number>,
     naclKeypair?: nacl.BoxKeyPair,
     side: genTypes.SideKind,
     maxOrders: BN,
@@ -167,6 +194,7 @@ describe("auction-house", () => {
   async function initUser(provider: anchor.Provider, wallet: anchor.Wallet, auction: Auction, side: genTypes.SideKind, numBaseTokens: BN, numQuoteTokens: BN): Promise<User>  {
     let userKeypair = new anchor.web3.Keypair();
     let user = userKeypair.publicKey;
+    await provider.connection.requestAirdrop(user, 1_000_000_00)
     let userBase = await createAssociatedTokenAccount(
       provider.connection,
       wallet.payer,
@@ -195,23 +223,31 @@ describe("auction-house", () => {
       wallet.publicKey,
       numQuoteTokens.toNumber(),
     );
+      // [Buffer.from("quote_vault"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
     let [openOrders] = await anchor.web3.PublicKey.findProgramAddress(
-      // TODO toBuffer might not be LE (lower endian) by default
-      [user.toBuffer(), Buffer.from("open_orders"), auction.startOrderPhase.toBuffer(), wallet.publicKey.toBuffer()],
+      [user.toBuffer(), Buffer.from("open_orders"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
       program.programId
-    )
+    );
+    let [orderHistory] = await anchor.web3.PublicKey.findProgramAddress(
+      [user.toBuffer(), Buffer.from("order_history"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
+      program.programId
+    );
+    // Calculation for the space needed in the open orders account
+    // varies a lot based on whether accounts are encrypted or not
+    // console.log("dumb console log");
     let naclKeypair = nacl.box.keyPair();
-    let naclPubkey = naclKeypair.publicKey;
+    let naclPubkey = Array.from(naclKeypair.publicKey);
     return {
       userKeypair,
       user,
       openOrders,
+      orderHistory,
       userBase,
       userQuote,
       naclKeypair,
       naclPubkey,
       side,
-      maxOrders: new anchor.BN(3)
+      maxOrders: new anchor.BN(1),
     }
   }
 

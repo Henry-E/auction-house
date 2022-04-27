@@ -13,29 +13,31 @@ use agnostic_orderbook::state::{Side as AobSide};
 // should we check that the user has the associated token accounts that will
 // required later on when settling the auction
 #[derive(Accounts)]
-// #[instruction()]
+#[instruction(max_orders: u8)]
 pub struct InitOpenOrders<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     // Program accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
         init,
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump,
-        space = 500, // TODO add some kind of macro to calculate the space needed
+        // TODO could try to add a macro / if statement to use less space
+        // if not an account for encrypted open orders
+        space = (108 as usize).checked_add((88 as usize).checked_mul(max_orders as usize).unwrap()).unwrap(), 
         payer = user,
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     #[account(
         init,
-        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump,
-        space = 18,
+        space = 26,
         payer = user,
     )]
     pub order_history: Account<'info, OrderHistory>,

@@ -56,10 +56,20 @@ macro_rules! auction_seeds {
     ( $auction:expr ) => {
         &[
             AUCTION.as_bytes(),
-            &$auction.start_order_phase.to_le_bytes(),
+            &$auction.auction_id,
             $auction.authority.as_ref(),
             &[$auction.bump],
         ]
+    };
+}
+
+#[macro_export]
+macro_rules! open_orders_space {
+    ( $auction:expr, $side:expr, $max_orders:expr ) => {
+        let mut space: u64 = 8 + 1 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 1 + (16 * max_orders);
+        // pubkey is optional
+        // vec encrypted orders is optional
+        space
     };
 }
 

@@ -20,12 +20,12 @@ pub struct NewOrder<'info> {
     pub user: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = open_orders.bump,
         mut
     )]
@@ -70,13 +70,13 @@ pub struct NewOrder<'info> {
     )]
     pub user_base: Account<'info, TokenAccount>,
     #[account(
-        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
         mut
     )]
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
-        seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bumps.base_vault,
         mut
     )]

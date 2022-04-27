@@ -111,6 +111,8 @@ pub fn init_auction(ctx: Context<InitAuction>, args: &InitAuctionArgs) -> Result
             quote_vault: *ctx.bumps.get("quote_vault").unwrap(),
             base_vault: *ctx.bumps.get("base_vault").unwrap(),
         },
+        authority: ctx.accounts.auctioneer.key(),
+        auction_id: args.auction_id,
         start_order_phase: args.start_order_phase,
         end_order_phase: args.end_order_phase,
         end_decryption_phase: args.end_decryption_phase,

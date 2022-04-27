@@ -23,7 +23,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     // An account struct with all of the auction options
 //     #[account(
 //         init,
-//         seeds = [AUCTION.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [AUCTION.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
 //         bump,
 //         space = 1000,
 //         payer = auctioneer,
@@ -32,7 +32,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     /// CHECK: This is a PDA
 //     #[account(
 //         init,
-//         seeds = [MARKET_STATE.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [MARKET_STATE.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
 //         bump,
 //         space = 1000,
 //         payer = auctioneer,
@@ -54,7 +54,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //         init,
 //         token::mint = base_mint,
 //         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-//         seeds = [QUOTE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [QUOTE_VAULT.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
 //         bump,
 //         payer = auctioneer,
 //     )]
@@ -63,7 +63,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //         init,
 //         token::mint = base_mint,
 //         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-//         seeds = [BASE_VAULT.as_bytes(), &args.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+//         seeds = [BASE_VAULT.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
 //         bump,
 //         payer = auctioneer,
 //     )]
@@ -106,13 +106,13 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     pub user: Signer<'info>,
 //     // Program accounts
 //     #[account(
-//         seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
 //         bump = auction.bump,
 //     )]
 //     pub auction: Box<Account<'info, Auction>>,
 //     #[account(
 //         init,
-//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
 //         bump,
 //         space = 500, // ??? We need quite a lot really with the encryption stuff
 //         payer = user,
@@ -120,7 +120,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 //     pub open_orders: Box<Account<'info, OpenOrders>>,
 //     #[account(
 //         init,
-//         seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
 //         bump,
 //         space = 18,
 //         payer = user,
@@ -150,13 +150,13 @@ pub struct NewEncryptedOrder<'info> {
     pub user: Signer<'info>,
     // Program accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
         mut,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = open_orders.bump,
         mut
     )]
@@ -179,13 +179,13 @@ pub struct NewEncryptedOrder<'info> {
     )]
     pub user_base: Account<'info, TokenAccount>,
     #[account(
-        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
         mut
     )]
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
-        seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bumps.base_vault,
         mut
     )]
@@ -281,12 +281,12 @@ impl<'info> NewEncryptedOrder<'info> {
 //     pub user: Signer<'info>,
 //     // Program Accounts
 //     #[account(
-//         seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
 //         bump = auction.bump,
 //     )]
 //     pub auction: Box<Account<'info, Auction>>,
 //     #[account(
-//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
 //         bump = open_orders.bump,
 //         mut
 //     )]
@@ -320,13 +320,13 @@ impl<'info> NewEncryptedOrder<'info> {
 //     )]
 //     pub user_token: Account<'info, TokenAccount>,
 //     #[account(
-//         seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [QUOTE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
 //         bump = auction.bumps.quote_vault,
 //         mut
 //     )]
 //     pub quote_vault: Account<'info, TokenAccount>,
 //     #[account(
-//         seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+//         seeds = [BASE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
 //         bump = auction.bumps.base_vault,
 //         mut
 //     )]
@@ -340,13 +340,13 @@ pub struct DecryptOrder<'info> {
     pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auctioneer.key().as_ref()],
         bump = auction.bump,
         mut
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [&open_orders.authority.as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auctioneer.key().as_ref()],
+        seeds = [&open_orders.authority.as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auctioneer.key().as_ref()],
         bump = open_orders.bump,
         mut
     )]
@@ -396,7 +396,7 @@ pub struct CalculateClearingPrice<'info> {
     // pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
@@ -434,7 +434,7 @@ pub struct MatchOrders<'info> {
     // pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
@@ -484,7 +484,7 @@ impl<'info> MatchOrders<'info> {
 pub struct ConsumeEvents<'info> {
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
@@ -509,32 +509,32 @@ pub struct SettleAndCloseOpenOrders<'info> {
     pub user: SystemAccount<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = open_orders.bump,
         mut,
         close = user,
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,
     #[account(
-        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [user.key().as_ref(), ORDER_HISTORY.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = order_history.bump,
         mut
     )]
     pub order_history: Account<'info, OrderHistory>, // Persists after open_orders has closed
     // Token Accounts
     #[account(
-        seeds = [QUOTE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bumps.quote_vault,
         mut
     )]
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
-        seeds = [BASE_VAULT.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bumps.base_vault,
         mut
     )]
@@ -602,7 +602,7 @@ pub struct CloseAobAccounts<'info> {
     pub auctioneer: Signer<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.start_order_phase.to_le_bytes(), auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump = auction.bump,
         mut
     )]
