@@ -8,6 +8,7 @@ export interface AuctionFields {
   bump: number
   bumps: types.AobBumpsFields
   authority: PublicKey
+  auctionId: Array<number>
   startOrderPhase: BN
   endOrderPhase: BN
   endDecryptionPhase: BN
@@ -41,6 +42,7 @@ export interface AuctionJSON {
   bump: number
   bumps: types.AobBumpsJSON
   authority: string
+  auctionId: Array<number>
   startOrderPhase: string
   endOrderPhase: string
   endDecryptionPhase: string
@@ -74,6 +76,7 @@ export class Auction {
   readonly bump: number
   readonly bumps: types.AobBumps
   readonly authority: PublicKey
+  readonly auctionId: Array<number>
   readonly startOrderPhase: BN
   readonly endOrderPhase: BN
   readonly endDecryptionPhase: BN
@@ -110,6 +113,7 @@ export class Auction {
     borsh.u8("bump"),
     types.AobBumps.layout("bumps"),
     borsh.publicKey("authority"),
+    borsh.array(borsh.u8(), 10, "auctionId"),
     borsh.i64("startOrderPhase"),
     borsh.i64("endOrderPhase"),
     borsh.i64("endDecryptionPhase"),
@@ -143,6 +147,7 @@ export class Auction {
     this.bump = fields.bump
     this.bumps = new types.AobBumps({ ...fields.bumps })
     this.authority = fields.authority
+    this.auctionId = fields.auctionId
     this.startOrderPhase = fields.startOrderPhase
     this.endOrderPhase = fields.endOrderPhase
     this.endDecryptionPhase = fields.endDecryptionPhase
@@ -217,6 +222,7 @@ export class Auction {
       bump: dec.bump,
       bumps: types.AobBumps.fromDecoded(dec.bumps),
       authority: dec.authority,
+      auctionId: dec.auctionId,
       startOrderPhase: dec.startOrderPhase,
       endOrderPhase: dec.endOrderPhase,
       endDecryptionPhase: dec.endDecryptionPhase,
@@ -252,6 +258,7 @@ export class Auction {
       bump: this.bump,
       bumps: this.bumps.toJSON(),
       authority: this.authority.toString(),
+      auctionId: this.auctionId,
       startOrderPhase: this.startOrderPhase.toString(),
       endOrderPhase: this.endOrderPhase.toString(),
       endDecryptionPhase: this.endDecryptionPhase.toString(),
@@ -287,6 +294,7 @@ export class Auction {
       bump: obj.bump,
       bumps: types.AobBumps.fromJSON(obj.bumps),
       authority: new PublicKey(obj.authority),
+      auctionId: obj.auctionId,
       startOrderPhase: new BN(obj.startOrderPhase),
       endOrderPhase: new BN(obj.endOrderPhase),
       endDecryptionPhase: new BN(obj.endDecryptionPhase),

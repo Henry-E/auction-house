@@ -21,6 +21,10 @@ describe("auction-house", () => {
 
   const program = anchor.workspace.AuctionHouse as Program<AuctionHouse>;
 
+  // This is probably a dumb way of doing this, the issue is that auctionId
+  // is supposed to be an Array<number> in the InitAuctionArgs/Accounts but a
+  // Uint8Array in the seeds
+  const auctionId = Array.from(Buffer.from("123".padEnd(10))); // Can be up to 10 characters long
   const areAsksEncrypted = false;
   const areBidsEncrypted = true;
   const minBaseOrderSize = new BN(1000);
@@ -34,7 +38,7 @@ describe("auction-house", () => {
   let startOrderPhase: BN;
 
   it("inits the auction", async() => {
-    auction = await initAuctionObj(provider, wallet, areAsksEncrypted, areBidsEncrypted, minBaseOrderSize, tickSize);
+    auction = await initAuctionObj(provider, wallet, auctionId, areAsksEncrypted, areBidsEncrypted, minBaseOrderSize, tickSize);
     let tx = new anchor.web3.Transaction;
 
     let eventQueueParams = await getCreateAccountParams(program, provider, wallet, auction.eventQueue, eventQueueBytes);
@@ -67,6 +71,7 @@ describe("auction-house", () => {
     tokenProgram: PublicKey,
     systemProgram: PublicKey,
     // Args
+    auctionId: Array<number>,
     startOrderPhase: BN,
     endOrderPhase: BN,
     endDecryptionPhase: BN,
@@ -78,7 +83,7 @@ describe("auction-house", () => {
     naclKeypair?: nacl.BoxKeyPair,
   }
 
-  async function initAuctionObj(provider: anchor.Provider, wallet: anchor.Wallet, areAsksEncrypted: boolean, areBidsEncrypted: boolean, minBaseOrderSize: BN, tickSize: BN): Promise<Auction> {
+  async function initAuctionObj(provider: anchor.Provider, wallet: anchor.Wallet, auctionId: Array<number>, areAsksEncrypted: boolean, areBidsEncrypted: boolean, minBaseOrderSize: BN, tickSize: BN): Promise<Auction> {
     let baseMint = await createMint(provider.connection,
         wallet.payer,
         wallet.publicKey,
@@ -93,19 +98,20 @@ describe("auction-house", () => {
       );
     let tx = new anchor.web3.Transaction();
     let nowBn = new anchor.BN(Date.now() / 1000);
+    // let auctionIdArray = Array.from(auctionId);
     let [auction] = await anchor.web3.PublicKey.findProgramAddress(
       // TODO toBuffer might not be LE (lower endian) by default
-      [Buffer.from("auction"), wallet.publicKey.toBuffer()],
+      [Buffer.from("auction"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
       program.programId
     )
     let [quoteVault] = await anchor.web3.PublicKey.findProgramAddress(
       // TODO toBuffer might not be LE (lower endian) by default
-      [Buffer.from("quote_vault"), wallet.publicKey.toBuffer()],
+      [Buffer.from("quote_vault"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
       program.programId
     )
     let [baseVault] = await anchor.web3.PublicKey.findProgramAddress(
       // TODO toBuffer might not be LE (lower endian) by default
-      [Buffer.from("base_vault"), wallet.publicKey.toBuffer()],
+      [Buffer.from("base_vault"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
       program.programId
     )
     let eventQueueKeypair = new anchor.web3.Keypair();
@@ -133,6 +139,7 @@ describe("auction-house", () => {
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: anchor.web3.SystemProgram.programId,
       // Args
+      auctionId,
       startOrderPhase: nowBn,
       endOrderPhase: nowBn.add(new anchor.BN(5)),
       endDecryptionPhase: nowBn.add(new anchor.BN(10)),

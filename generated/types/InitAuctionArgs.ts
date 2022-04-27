@@ -4,6 +4,7 @@ import * as types from "../types" // eslint-disable-line @typescript-eslint/no-u
 import * as borsh from "@project-serum/borsh"
 
 export interface InitAuctionArgsFields {
+  auctionId: Array<number>
   startOrderPhase: BN
   endOrderPhase: BN
   endDecryptionPhase: BN
@@ -15,6 +16,7 @@ export interface InitAuctionArgsFields {
 }
 
 export interface InitAuctionArgsJSON {
+  auctionId: Array<number>
   startOrderPhase: string
   endOrderPhase: string
   endDecryptionPhase: string
@@ -26,6 +28,7 @@ export interface InitAuctionArgsJSON {
 }
 
 export class InitAuctionArgs {
+  readonly auctionId: Array<number>
   readonly startOrderPhase: BN
   readonly endOrderPhase: BN
   readonly endDecryptionPhase: BN
@@ -36,6 +39,7 @@ export class InitAuctionArgs {
   readonly tickSize: BN
 
   constructor(fields: InitAuctionArgsFields) {
+    this.auctionId = fields.auctionId
     this.startOrderPhase = fields.startOrderPhase
     this.endOrderPhase = fields.endOrderPhase
     this.endDecryptionPhase = fields.endDecryptionPhase
@@ -49,6 +53,7 @@ export class InitAuctionArgs {
   static layout(property?: string) {
     return borsh.struct(
       [
+        borsh.array(borsh.u8(), 10, "auctionId"),
         borsh.i64("startOrderPhase"),
         borsh.i64("endOrderPhase"),
         borsh.i64("endDecryptionPhase"),
@@ -65,6 +70,7 @@ export class InitAuctionArgs {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromDecoded(obj: any) {
     return new InitAuctionArgs({
+      auctionId: obj.auctionId,
       startOrderPhase: obj.startOrderPhase,
       endOrderPhase: obj.endOrderPhase,
       endDecryptionPhase: obj.endDecryptionPhase,
@@ -78,6 +84,7 @@ export class InitAuctionArgs {
 
   static toEncodable(fields: InitAuctionArgsFields) {
     return {
+      auctionId: fields.auctionId,
       startOrderPhase: fields.startOrderPhase,
       endOrderPhase: fields.endOrderPhase,
       endDecryptionPhase: fields.endDecryptionPhase,
@@ -91,6 +98,7 @@ export class InitAuctionArgs {
 
   toJSON(): InitAuctionArgsJSON {
     return {
+      auctionId: this.auctionId,
       startOrderPhase: this.startOrderPhase.toString(),
       endOrderPhase: this.endOrderPhase.toString(),
       endDecryptionPhase: this.endDecryptionPhase.toString(),
@@ -104,6 +112,7 @@ export class InitAuctionArgs {
 
   static fromJSON(obj: InitAuctionArgsJSON): InitAuctionArgs {
     return new InitAuctionArgs({
+      auctionId: obj.auctionId,
       startOrderPhase: new BN(obj.startOrderPhase),
       endOrderPhase: new BN(obj.endOrderPhase),
       endDecryptionPhase: new BN(obj.endDecryptionPhase),

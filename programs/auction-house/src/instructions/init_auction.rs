@@ -21,7 +21,7 @@ pub struct InitAuction<'info> {
     // An account struct with all of the auction options
     #[account(
         init,
-        seeds = [AUCTION.as_bytes(), auctioneer.key().as_ref()],
+        seeds = [AUCTION.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
         bump,
         space = 1000,
         payer = auctioneer,
@@ -43,7 +43,7 @@ pub struct InitAuction<'info> {
         init,
         token::mint = base_mint,
         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [QUOTE_VAULT.as_bytes(), auctioneer.key().as_ref()],
+        seeds = [QUOTE_VAULT.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
     )]
@@ -52,7 +52,7 @@ pub struct InitAuction<'info> {
         init,
         token::mint = base_mint,
         token::authority = auctioneer, // It should probably be the auction account, since it will sign
-        seeds = [BASE_VAULT.as_bytes(), auctioneer.key().as_ref()],
+        seeds = [BASE_VAULT.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
     )]
@@ -92,6 +92,7 @@ impl InitAuction<'_> {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitAuctionArgs {
+    pub auction_id: [u8; 10],
     pub start_order_phase: i64,
     pub end_order_phase: i64,
     pub end_decryption_phase: i64,

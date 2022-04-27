@@ -17,6 +17,7 @@ pub struct Auction {
     pub bump: u8,
     pub bumps: AobBumps,
     pub authority: Pubkey,
+    pub auction_id: [u8; 10],
     pub start_order_phase: i64,
     pub end_order_phase: i64,
     pub end_decryption_phase: i64,
