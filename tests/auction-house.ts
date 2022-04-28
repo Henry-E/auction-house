@@ -11,6 +11,7 @@ import * as genTypes from "../generated/types";
 import * as genAccs from "../generated/accounts";
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 import { assert } from "chai";
+import { fromCode } from "../generated/errors";
 // import { Side } from "../generated/types";
 
 describe("auction-house", () => {
@@ -61,7 +62,7 @@ describe("auction-house", () => {
 
   it("init open orders", async() => {
     let thisAskUser = await initUser(provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(2_000_000), new anchor.BN(0));
-    let thisBidUser = await initUser(provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(2_000_000));
+    let thisBidUser = await initUser(provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(2_200_000));
     users.push(thisAskUser, thisBidUser);
     let tx = new anchor.web3.Transaction;
     tx.add(genInstr.initOpenOrders(
@@ -112,6 +113,80 @@ describe("auction-house", () => {
     console.log(await provider.connection.getTokenAccountBalance(thisAskUser.userBase));
 
     assert.isTrue(thisOpenOrders.numOrders == 1, "check the order has been cancelled");
+  });
+
+  it("new encrypted order", async() => {
+    let thisBidUser = users[1];
+    let nonce_1 = nacl.randomBytes(nacl.box.nonceLength);
+    let nonce_2 = nacl.randomBytes(nacl.box.nonceLength);
+    let priceNum = 1.1;
+    let price = toFpLimitPrice(priceNum, tickSizeNum);
+    let priceBuffer = price.toBuffer('le', 8);
+    let quantityNum = 1_000_000;
+    let quantity = new BN(quantityNum);
+    let quantityBuffer = quantity.toBuffer('le', 8);
+    let tokenQty = new BN(quantityNum * priceNum);
+    let plainText = Buffer.concat([priceBuffer, quantityBuffer]);
+    let cipherText_1 = nacl.box(
+      plainText,
+      nonce_1,
+      thisBidUser.naclKeypair.secretKey,
+      Uint8Array.from(auction.naclPubkey),
+    )
+    let cipherText_2 = nacl.box(
+      plainText,
+      nonce_2,
+      thisBidUser.naclKeypair.secretKey,
+      Uint8Array.from(auction.naclPubkey),
+    )
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.newEncryptedOrder(
+      {tokenQty, naclPubkey: thisBidUser.naclPubkey, nonce: Array.from(nonce_1), cipherText: Array.from(cipherText_1)},
+      {...thisBidUser, ...auction}
+    ));
+    tx.add(genInstr.newEncryptedOrder(
+      {tokenQty, naclPubkey: thisBidUser.naclPubkey, nonce: Array.from(nonce_2), cipherText: Array.from(cipherText_2)},
+      {...thisBidUser, ...auction}
+    ));
+    await provider.send(tx, [thisBidUser.userKeypair], {skipPreflight: true});
+
+    let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisBidUser.openOrders);
+    assert.isTrue(thisOpenOrders.numOrders == 2, "check the orders have been added");
+  });
+
+  it("cancel encrypted order", async() => {
+    let thisBidUser = users[1];
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.cancelEncryptedOrder(
+      {orderIdx: new BN(0)},
+      {...thisBidUser, ...auction}
+    ));
+    await provider.send(tx, [thisBidUser.userKeypair], {skipPreflight: true});
+
+    let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisBidUser.openOrders);
+    assert.isTrue(thisOpenOrders.numOrders == 1,  "check the orders have been added");
+  });
+
+  it("decrypts order", async() => {
+    // TODO should we rename arg from secretKey to sharedKey?
+    let thisBidUser = users[1];
+    const sharedKey = Array.from(nacl.box.before(
+      Uint8Array.from(thisBidUser.naclPubkey),
+      auction.naclKeypair.secretKey
+    ));
+    let remainingTimeToDecryption = (Date.now() / 1000) - auction.endOrderPhase;
+    if (remainingTimeToDecryption > 0) {
+      await sleep(remainingTimeToDecryption);
+    }
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.decryptOrder(
+      {secretKey: sharedKey},
+      {...thisBidUser, ...auction}
+    ));
+    await provider.send(tx, [thisBidUser.userKeypair], {skipPreflight: true});
+
+    let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisBidUser.openOrders);
+    assert.isTrue(thisOpenOrders.orders.length == 1,  "check the order has been added to the order book");
   });
 
 
@@ -203,8 +278,8 @@ describe("auction-house", () => {
       // Args
       auctionId,
       startOrderPhase: nowBn,
-      endOrderPhase: nowBn.add(new anchor.BN(5)),
-      endDecryptionPhase: nowBn.add(new anchor.BN(10)),
+      endOrderPhase: nowBn.add(new anchor.BN(10)),
+      endDecryptionPhase: nowBn.add(new anchor.BN(15)),
       areAsksEncrypted,
       areBidsEncrypted,
       minBaseOrderSize,
@@ -306,5 +381,11 @@ describe("auction-house", () => {
       programId: program.programId
     }
   }
+
+  function sleep(ms: number) {
+    console.log("Sleeping for", ms / 1000, "seconds");
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
 
 });

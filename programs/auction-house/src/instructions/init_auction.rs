@@ -41,7 +41,7 @@ pub struct InitAuction<'info> {
     pub base_mint: Account<'info, Mint>,
     #[account(
         init,
-        token::mint = base_mint,
+        token::mint = quote_mint,
         token::authority = auction, // It should probably be the auction account, since it will sign
         seeds = [QUOTE_VAULT.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
         bump,

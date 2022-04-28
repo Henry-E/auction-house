@@ -13,7 +13,7 @@ use agnostic_orderbook::state::Side as AobSide;
 // should we check that the user has the associated token accounts that will
 // required later on when settling the auction
 #[derive(Accounts)]
-#[instruction(max_orders: u8)]
+#[instruction(side: Side, max_orders: u8)]
 pub struct InitOpenOrders<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -27,9 +27,17 @@ pub struct InitOpenOrders<'info> {
         init,
         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump,
-        // TODO could add block {} with an if statement to use less space
-        // if not an account for encrypted open orders
-        space = (108 as usize).checked_add((88 as usize).checked_mul(max_orders as usize).unwrap()).unwrap(), 
+        space = {
+            let mut this_space = 108 as usize;
+            if (auction.are_asks_encrypted && side == Side::Ask) || (auction.are_bids_encrypted && side == Side::Bid) {
+                msg!("max orders {}", max_orders);
+                this_space = this_space.checked_add((80 as usize).checked_mul(max_orders as usize).unwrap()).unwrap();
+            } else {
+                this_space = this_space.checked_add((16 as usize).checked_mul(max_orders as usize).unwrap()).unwrap();
+            }
+            msg!("space for this open orders {}", this_space);
+            this_space
+        },
         payer = user,
     )]
     pub open_orders: Box<Account<'info, OpenOrders>>,

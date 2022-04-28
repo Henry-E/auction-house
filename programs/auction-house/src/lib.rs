@@ -171,8 +171,7 @@ pub mod auction_house {
             }
         }
 
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        Ok(())
     }
 
     #[access_control(ctx.accounts.access_control_cancel_encrypted_order(order_idx))]
@@ -208,8 +207,7 @@ pub mod auction_house {
             }
         }
 
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        Ok(())
     }
 
     #[access_control(ctx.accounts.access_control())]
@@ -253,15 +251,24 @@ pub mod auction_house {
                 limit_price,
                 max_base_qty,
             )?;
+            // Place a new order
+            let params = open_orders.new_order_params(limit_price, max_base_qty, max_quote_qty);
+            let order_summary = order_book
+                .new_order(
+                    params,
+                    &mut event_queue,
+                    ctx.accounts.auction.min_base_order_size,
+                )
+                .unwrap();
             // Make sure the order has enough tokens.
             // If the order is for less than token_qty then move that amount to token_free balance.
             match open_orders.side {
                 Side::Ask => {
-                    if encrypted_order.token_qty < max_base_qty {
+                    if encrypted_order.token_qty < order_summary.total_base_qty {
                         return Err(error!(CustomErrors::InsufficientTokensForOrder));
                     }
                     let remaining_tokens =
-                        encrypted_order.token_qty.checked_sub(max_base_qty).unwrap();
+                        encrypted_order.token_qty.checked_sub(order_summary.total_base_qty).unwrap();
                     if remaining_tokens > 0 {
                         open_orders.base_token_free = open_orders
                             .base_token_free
@@ -274,12 +281,12 @@ pub mod auction_house {
                     }
                 }
                 Side::Bid => {
-                    if encrypted_order.token_qty < max_quote_qty {
+                    if encrypted_order.token_qty < order_summary.total_quote_qty {
                         return Err(error!(CustomErrors::InsufficientTokensForOrder));
                     }
                     let remaining_tokens = encrypted_order
                         .token_qty
-                        .checked_sub(max_quote_qty)
+                        .checked_sub(order_summary.total_quote_qty)
                         .unwrap();
                     if remaining_tokens > 0 {
                         open_orders.quote_token_free = open_orders
@@ -293,15 +300,7 @@ pub mod auction_house {
                     }
                 }
             }
-            // Place a new order
-            let params = open_orders.new_order_params(limit_price, max_base_qty, max_quote_qty);
-            let order_summary = order_book
-                .new_order(
-                    params,
-                    &mut event_queue,
-                    ctx.accounts.auction.min_base_order_size,
-                )
-                .unwrap();
+
 
             open_orders
                 .orders
@@ -309,8 +308,8 @@ pub mod auction_house {
         }
 
         open_orders.encrypted_orders = Vec::new();
-
-        Err(error!(CustomErrors::NotImplemented))
+        order_book.commit_changes();
+        Ok(())
     }
 
     #[access_control(ctx.accounts.access_control())]
