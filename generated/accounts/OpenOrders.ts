@@ -7,6 +7,7 @@ import { PROGRAM_ID } from "../programId"
 export interface OpenOrdersFields {
   bump: number
   authority: PublicKey
+  thisOpenOrders: PublicKey
   maxOrders: number
   side: types.SideKind
   naclPubkey: Array<number>
@@ -22,6 +23,7 @@ export interface OpenOrdersFields {
 export interface OpenOrdersJSON {
   bump: number
   authority: string
+  thisOpenOrders: string
   maxOrders: number
   side: types.SideJSON
   naclPubkey: Array<number>
@@ -37,6 +39,7 @@ export interface OpenOrdersJSON {
 export class OpenOrders {
   readonly bump: number
   readonly authority: PublicKey
+  readonly thisOpenOrders: PublicKey
   readonly maxOrders: number
   readonly side: types.SideKind
   readonly naclPubkey: Array<number>
@@ -55,6 +58,7 @@ export class OpenOrders {
   static readonly layout = borsh.struct([
     borsh.u8("bump"),
     borsh.publicKey("authority"),
+    borsh.publicKey("thisOpenOrders"),
     borsh.u8("maxOrders"),
     types.Side.layout("side"),
     borsh.vecU8("naclPubkey"),
@@ -70,6 +74,7 @@ export class OpenOrders {
   constructor(fields: OpenOrdersFields) {
     this.bump = fields.bump
     this.authority = fields.authority
+    this.thisOpenOrders = fields.thisOpenOrders
     this.maxOrders = fields.maxOrders
     this.side = fields.side
     this.naclPubkey = fields.naclPubkey
@@ -128,6 +133,7 @@ export class OpenOrders {
     return new OpenOrders({
       bump: dec.bump,
       authority: dec.authority,
+      thisOpenOrders: dec.thisOpenOrders,
       maxOrders: dec.maxOrders,
       side: types.Side.fromDecoded(dec.side),
       naclPubkey: Array.from(dec.naclPubkey),
@@ -147,6 +153,7 @@ export class OpenOrders {
     return {
       bump: this.bump,
       authority: this.authority.toString(),
+      thisOpenOrders: this.thisOpenOrders.toString(),
       maxOrders: this.maxOrders,
       side: this.side.toJSON(),
       naclPubkey: this.naclPubkey,
@@ -164,6 +171,7 @@ export class OpenOrders {
     return new OpenOrders({
       bump: obj.bump,
       authority: new PublicKey(obj.authority),
+      thisOpenOrders: new PublicKey(obj.thisOpenOrders),
       maxOrders: obj.maxOrders,
       side: types.Side.fromJSON(obj.side),
       naclPubkey: obj.naclPubkey,

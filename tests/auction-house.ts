@@ -10,7 +10,7 @@ import * as genInstr from "../generated/instructions";
 import * as genTypes from "../generated/types";
 import * as genAccs from "../generated/accounts";
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
-import { assert } from "chai";
+import { assert, expect } from "chai";
 import { fromCode } from "../generated/errors";
 // import { Side } from "../generated/types";
 
@@ -61,7 +61,7 @@ describe("auction-house", () => {
   });
 
   it("init open orders", async() => {
-    let thisAskUser = await initUser(provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(2_000_000), new anchor.BN(0));
+    let thisAskUser = await initUser(provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(3_000_000), new anchor.BN(0));
     let thisBidUser = await initUser(provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(2_200_000));
     users.push(thisAskUser, thisBidUser);
     let tx = new anchor.web3.Transaction;
@@ -130,14 +130,14 @@ describe("auction-house", () => {
     let cipherText_1 = nacl.box(
       plainText,
       nonce_1,
-      thisBidUser.naclKeypair.secretKey,
       Uint8Array.from(auction.naclPubkey),
+      thisBidUser.naclKeypair.secretKey,
     )
     let cipherText_2 = nacl.box(
       plainText,
       nonce_2,
-      thisBidUser.naclKeypair.secretKey,
       Uint8Array.from(auction.naclPubkey),
+      thisBidUser.naclKeypair.secretKey,
     )
     let tx = new anchor.web3.Transaction;
     tx.add(genInstr.newEncryptedOrder(
@@ -174,21 +174,99 @@ describe("auction-house", () => {
       Uint8Array.from(thisBidUser.naclPubkey),
       auction.naclKeypair.secretKey
     ));
-    let remainingTimeToDecryption = (Date.now() / 1000) - auction.endOrderPhase;
+    let remainingTimeToDecryption = auction.endOrderPhase - (Date.now() / 1000);
     if (remainingTimeToDecryption > 0) {
-      await sleep(remainingTimeToDecryption);
+      await sleep(remainingTimeToDecryption + 1);
     }
     let tx = new anchor.web3.Transaction;
     tx.add(genInstr.decryptOrder(
-      {secretKey: sharedKey},
+      {sharedKey},
       {...thisBidUser, ...auction}
     ));
-    await provider.send(tx, [thisBidUser.userKeypair], {skipPreflight: true});
+    await provider.send(tx, [], {skipPreflight: true});
 
     let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisBidUser.openOrders);
+    assert.isTrue(thisOpenOrders.encryptedOrders.length == 0, "check that the encrypted orders have been cleared out");
     assert.isTrue(thisOpenOrders.orders.length == 1,  "check the order has been added to the order book");
   });
 
+  it("calculates the clearing price", async() => {
+    let remainingTimeToClearing = auction.endDecryptionPhase - (Date.now() / 1000);
+    if (remainingTimeToClearing > 0) {
+      await sleep(remainingTimeToClearing + 1);
+    }
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.calculateClearingPrice(
+      {limit: new BN(10)},
+      {...auction}
+    ));
+    await provider.send(tx, [], {skipPreflight: true});
+    let thisAuction = await genAccs.Auction.fetch(provider.connection ,auction.auction);
+    assert.isTrue(thisAuction.hasFoundClearingPrice, "Auction has found clearing price");
+  });
+
+  it("matches the price", async() => {
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.matchOrders(
+      {limit: new BN(10)},
+      {...auction}
+    ));
+    tx.add(genInstr.matchOrders(
+      {limit: new BN(10)},
+      {...auction}
+    ));
+    await provider.send(tx, [], {skipPreflight: true});
+    let thisAuction = await genAccs.Auction.fetch(provider.connection ,auction.auction);
+    assert.isTrue(thisAuction.remainingBidFills.eq(new BN(0)), "Bid orders filled");
+    assert.isTrue(thisAuction.remainingAskFills.eq(new BN(0)), "Ask orders filled");
+  });
+
+  it("consumes events", async() => {
+    let tx = new anchor.web3.Transaction;
+    let thisInstr = genInstr.consumeEvents(
+      {limit: new BN(10), allowNoOp: false},
+      {...auction}
+    );
+    // This is how we add remaining accounts to the transaction instruction
+    thisInstr.keys = thisInstr.keys.concat([
+      {pubkey: users[0].openOrders, isSigner: false, isWritable: true},
+      {pubkey: users[1].openOrders, isSigner: false, isWritable: true},
+    ]);
+    tx.add(thisInstr);
+    await provider.send(tx, [], {skipPreflight: true});
+    tx = new anchor.web3.Transaction;
+    tx.add(genInstr.consumeEvents(
+      {limit: new BN(10), allowNoOp: false},
+      {...auction}
+    ));
+    let does_function_error = false;
+    try {
+      await provider.send(tx);
+    } catch(e) {
+      console.log(e.toString())
+      // 0x177f Error indicates there are no events left to process
+      if (e.toString().includes("0x177f")){
+        does_function_error = true;
+      }
+    }
+    assert.isTrue(does_function_error);
+  });
+
+  it("settle and closes open orders", async() => {
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.settleAndCloseOpenOrders(
+      {...auction, ...users[0]}
+    ));
+    tx.add(genInstr.settleAndCloseOpenOrders(
+      {...auction, ...users[1]}
+    ));
+    await provider.send(tx, [], {skipPreflight: true});
+    console.log(await provider.connection.getTokenAccountBalance(users[0].userBase));
+    console.log(await provider.connection.getTokenAccountBalance(users[0].userQuote));
+    console.log(await provider.connection.getTokenAccountBalance(users[1].userBase));
+    console.log(await provider.connection.getTokenAccountBalance(users[1].userQuote));
+  });
+  
 
   interface Auction {
     // Accounts
@@ -278,8 +356,8 @@ describe("auction-house", () => {
       // Args
       auctionId,
       startOrderPhase: nowBn,
-      endOrderPhase: nowBn.add(new anchor.BN(10)),
-      endDecryptionPhase: nowBn.add(new anchor.BN(15)),
+      endOrderPhase: nowBn.add(new anchor.BN(8)),
+      endDecryptionPhase: nowBn.add(new anchor.BN(10)),
       areAsksEncrypted,
       areBidsEncrypted,
       minBaseOrderSize,
@@ -343,9 +421,6 @@ describe("auction-house", () => {
       [user.toBuffer(), Buffer.from("order_history"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
       program.programId
     );
-    // Calculation for the space needed in the open orders account
-    // varies a lot based on whether accounts are encrypted or not
-    // console.log("dumb console log");
     let naclKeypair = nacl.box.keyPair();
     let naclPubkey = Array.from(naclKeypair.publicKey);
     return {
@@ -358,7 +433,7 @@ describe("auction-house", () => {
       naclKeypair,
       naclPubkey,
       side,
-      maxOrders: new anchor.BN(2),
+      maxOrders: new anchor.BN(3),
     }
   }
 
@@ -383,8 +458,8 @@ describe("auction-house", () => {
   }
 
   function sleep(ms: number) {
-    console.log("Sleeping for", ms / 1000, "seconds");
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    console.log("Sleeping for", ms , "ms seconds");
+    return new Promise((resolve) => setTimeout(resolve, ms * 1000));
   }
 
 

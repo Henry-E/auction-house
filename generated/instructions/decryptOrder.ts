@@ -5,7 +5,7 @@ import * as types from "../types" // eslint-disable-line @typescript-eslint/no-u
 import { PROGRAM_ID } from "../programId"
 
 export interface DecryptOrderArgs {
-  secretKey: Array<number>
+  sharedKey: Array<number>
 }
 
 export interface DecryptOrderAccounts {
@@ -17,7 +17,7 @@ export interface DecryptOrderAccounts {
   asks: PublicKey
 }
 
-export const layout = borsh.struct([borsh.vecU8("secretKey")])
+export const layout = borsh.struct([borsh.vecU8("sharedKey")])
 
 export function decryptOrder(
   args: DecryptOrderArgs,
@@ -35,7 +35,7 @@ export function decryptOrder(
   const buffer = Buffer.alloc(1000)
   const len = layout.encode(
     {
-      secretKey: Buffer.from(args.secretKey),
+      sharedKey: Buffer.from(args.sharedKey),
     },
     buffer
   )

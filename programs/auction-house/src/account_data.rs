@@ -11,7 +11,7 @@ use agnostic_orderbook::state::{SelfTradeBehavior, Side as AobSide};
 use crate::error::CustomErrors;
 
 #[account]
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Auction {
     // General auction options
     pub bump: u8,
@@ -75,7 +75,7 @@ impl Default for FinalPriceTypes {
     fn default() -> Self { FinalPriceTypes::BestBid }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Debug)]
 pub struct AobBumps {
     pub quote_vault: u8,
     pub base_vault: u8,
@@ -86,6 +86,7 @@ pub struct AobBumps {
 pub struct OpenOrders {
     pub bump: u8,
     pub authority: Pubkey,
+    pub this_open_orders: Pubkey,
     // TODO: I don't think we need a max num orders param
     // or to track it, because the program should error if too much
     // data is accessed or written to.
@@ -125,7 +126,7 @@ impl OpenOrders {
             max_quote_qty,
             limit_price,
             side: AobSide::from(self.side),
-            callback_info: vec![0; 32],
+            callback_info: self.this_open_orders.to_bytes().to_vec(),
             post_only: true,
             post_allowed: true,
             // self trade behaviour is ignored, this is a vestigial argument

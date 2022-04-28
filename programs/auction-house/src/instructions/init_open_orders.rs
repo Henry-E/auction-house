@@ -28,7 +28,7 @@ pub struct InitOpenOrders<'info> {
         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump,
         space = {
-            let mut this_space = 108 as usize;
+            let mut this_space = 140 as usize;
             if (auction.are_asks_encrypted && side == Side::Ask) || (auction.are_bids_encrypted && side == Side::Bid) {
                 msg!("max orders {}", max_orders);
                 this_space = this_space.checked_add((80 as usize).checked_mul(max_orders as usize).unwrap()).unwrap();
@@ -90,6 +90,7 @@ pub fn init_open_orders(ctx: Context<InitOpenOrders>, side: Side, max_orders: u8
     ctx.accounts.open_orders.set_inner(OpenOrders {
         bump: *ctx.bumps.get("open_orders").unwrap(),
         authority: ctx.accounts.user.key(),
+        this_open_orders: ctx.accounts.open_orders.key(),
         max_orders,
         side,
         // Everything else defaults to 0

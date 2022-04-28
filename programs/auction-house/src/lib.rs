@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::log::sol_log_compute_units;
 use anchor_spl::token;
 
 use agnostic_orderbook::critbit::LeafNode;
@@ -36,6 +37,7 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod auction_house {
+
 
     use super::*;
 
@@ -211,7 +213,7 @@ pub mod auction_house {
     }
 
     #[access_control(ctx.accounts.access_control())]
-    pub fn decrypt_order(ctx: Context<DecryptOrder>, secret_key: Vec<u8>) -> Result<()> {
+    pub fn decrypt_order(ctx: Context<DecryptOrder>, shared_key: Vec<u8>) -> Result<()> {
         // Load up all the AOB accounts
         let mut order_book = OrderBookState::new_safe(
             &ctx.accounts.bids.to_account_info(),
@@ -232,7 +234,7 @@ pub mod auction_house {
             CALLBACK_INFO_LEN,
         )?;
 
-        let key = xsalsa20poly1305::Key::from_slice(secret_key.as_slice());
+        let key = xsalsa20poly1305::Key::from_slice(shared_key.as_slice());
         let cypher = XSalsa20Poly1305::new(key);
 
         let open_orders = &mut *ctx.accounts.open_orders;
@@ -241,7 +243,7 @@ pub mod auction_house {
             // TODO Make sure that we're encrypting price and qty correctly on client side
             let price_and_quantity = cypher
                 .decrypt(nonce, encrypted_order.cipher_text.as_slice())
-                .unwrap();
+                .map_err(|_| error!(CustomErrors::InvalidSharedKey))?;
             let limit_price = u64::from_le_bytes(price_and_quantity[0..8].try_into().unwrap());
             let max_base_qty = u64::from_le_bytes(price_and_quantity[8..16].try_into().unwrap());
             let max_quote_qty = fp32_mul(max_base_qty, limit_price);
@@ -309,6 +311,11 @@ pub mod auction_house {
 
         open_orders.encrypted_orders = Vec::new();
         order_book.commit_changes();
+        let mut event_queue_header_data: &mut [u8] = &mut ctx.accounts.event_queue.data.borrow_mut();
+        event_queue
+            .header
+            .serialize(&mut event_queue_header_data)
+            .unwrap();
         Ok(())
     }
 
@@ -444,10 +451,10 @@ pub mod auction_house {
             auction.final_ask_price = current_ask.price();
             // For now clearing price defaults to lowest bid that fills the ask quantity
             auction.clearing_price = current_bid.price();
+            msg!("total_quantity_matched: {}, clearing_price: {}", auction.total_quantity_matched, auction.clearing_price);
         }
 
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        Ok(())
     }
 
     #[access_control(ctx.accounts.access_control())]
@@ -594,9 +601,13 @@ pub mod auction_house {
         }
 
         order_book.commit_changes();
+        let mut event_queue_header_data: &mut [u8] = &mut ctx.accounts.event_queue.data.borrow_mut();
+        event_queue
+            .header
+            .serialize(&mut event_queue_header_data)
+            .unwrap();
 
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        Ok(())
     }
 
     pub fn consume_events(
@@ -746,8 +757,7 @@ pub mod auction_house {
         event_queue.header.serialize(&mut event_queue_data).unwrap();
         msg!("num events processed: {}", total_iterations);
 
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        Ok(())
     }
 
     #[access_control(ctx.accounts.access_control())]
@@ -787,8 +797,7 @@ pub mod auction_house {
             )?;
         }
 
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        Ok(())
     }
 
     #[access_control(ctx.accounts.access_control())]

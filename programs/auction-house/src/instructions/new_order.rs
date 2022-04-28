@@ -223,6 +223,11 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
     }
 
     order_book.commit_changes();
+    let mut event_queue_header_data: &mut [u8] = &mut ctx.accounts.event_queue.data.borrow_mut();
+    event_queue
+        .header
+        .serialize(&mut event_queue_header_data)
+        .unwrap();
 
     Ok(())
 }
