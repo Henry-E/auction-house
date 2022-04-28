@@ -63,16 +63,6 @@ macro_rules! auction_seeds {
     };
 }
 
-#[macro_export]
-macro_rules! open_orders_space {
-    ( $auction:expr, $side:expr, $max_orders:expr ) => {
-        let mut space: u64 = 8 + 1 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 1 + (16 * max_orders);
-        // pubkey is optional
-        // vec encrypted orders is optional
-        space
-    };
-}
-
 pub use auction_seeds;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
@@ -92,7 +82,7 @@ pub struct AobBumps {
 }
 
 #[account]
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct OpenOrders {
     pub bump: u8,
     pub authority: Pubkey,
@@ -115,14 +105,12 @@ pub struct OpenOrders {
 }
 
 impl OpenOrders {
-    pub fn find_order_index(&self, order_id: u128) -> Result<(usize)> {
+    pub fn find_order_index(&self, order_id: &u128) -> Result<usize> {
         let idx = self
             .orders
             .iter()
-            .enumerate()
-            .find(|(_, this_order)| **this_order == order_id)
-            .ok_or(error!(CustomErrors::OrderIdNotFound))?
-            .0;
+            .position(|this_order| this_order == order_id)
+            .ok_or(error!(CustomErrors::OrderIdNotFound))?;
         Ok(idx)
     }
 
@@ -137,7 +125,7 @@ impl OpenOrders {
             max_quote_qty,
             limit_price,
             side: AobSide::from(self.side),
-            callback_info: Vec::new(),
+            callback_info: vec![0; 32],
             post_only: true,
             post_allowed: true,
             // self trade behaviour is ignored, this is a vestigial argument
@@ -147,7 +135,7 @@ impl OpenOrders {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Debug)]
 pub enum Side {
     Bid,
     Ask,
@@ -166,7 +154,7 @@ impl Default for Side {
     fn default() -> Self { Side::Bid }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct EncryptedOrder {
     pub nonce: Vec<u8>,
     pub cipher_text: Vec<u8>,

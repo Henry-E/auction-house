@@ -206,7 +206,8 @@ impl NewEncryptedOrder<'_> {
         encrypted_orders_only(&auction, &open_orders)?;
         has_space_for_new_orders(&open_orders)?;
 
-        if !self.open_orders.nacl_pubkey.is_empty() && self.open_orders.nacl_pubkey != *nacl_pubkey {
+        if !self.open_orders.nacl_pubkey.is_empty() && self.open_orders.nacl_pubkey != *nacl_pubkey
+        {
             return Err(error!(CustomErrors::EncryptionPubkeysDoNotMatch));
         }
         Ok(())

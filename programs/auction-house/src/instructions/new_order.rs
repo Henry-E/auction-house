@@ -102,7 +102,7 @@ impl NewOrder<'_> {
     }
 
     // TODO move this to cancel_order.rs
-    pub fn access_control_cancel_order(&self, order_id: u128) -> Result<()> {
+    pub fn access_control_cancel_order(&self, order_id: &u128) -> Result<()> {
         let clock = Clock::get()?;
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
@@ -180,9 +180,9 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
 
     let max_quote_qty = fp32_mul(max_base_qty, limit_price);
     let params =
-        ctx.accounts
-            .open_orders
-            .new_order_params(limit_price, max_base_qty, max_quote_qty);
+    ctx.accounts
+    .open_orders
+    .new_order_params(limit_price, max_base_qty, max_quote_qty);
     let order_summary = order_book
         .new_order(
             params,
@@ -199,6 +199,8 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
 
     match open_orders.side {
         Side::Ask => {
+            msg!("order summary {:?}", order_summary);
+            msg!("max base qty {}", max_base_qty);
             open_orders.base_token_locked = open_orders
                 .base_token_locked
                 .checked_add(order_summary.total_base_qty)
@@ -219,6 +221,8 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
             )?;
         }
     }
+
+    order_book.commit_changes();
 
     Ok(())
 }

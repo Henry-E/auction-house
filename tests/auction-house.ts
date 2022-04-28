@@ -29,7 +29,8 @@ describe("auction-house", () => {
   const areAsksEncrypted = false;
   const areBidsEncrypted = true;
   const minBaseOrderSize = new BN(1000);
-  const tickSize = toFp32(0.1);
+  const tickSizeNum = 0.1;
+  const tickSize = toFp32(tickSizeNum);
   const eventQueueBytes = 1000000;
   const bidsBytes = 64000;
   const asksBytes = 64000;
@@ -59,8 +60,8 @@ describe("auction-house", () => {
   });
 
   it("init open orders", async() => {
-    let thisAskUser = await initUser(provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(1_000_000), new anchor.BN(0));
-    let thisBidUser = await initUser(provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(1_000_000));
+    let thisAskUser = await initUser(provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(2_000_000), new anchor.BN(0));
+    let thisBidUser = await initUser(provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(2_000_000));
     users.push(thisAskUser, thisBidUser);
     let tx = new anchor.web3.Transaction;
     tx.add(genInstr.initOpenOrders(
@@ -78,6 +79,41 @@ describe("auction-house", () => {
     assert.isTrue(askOpenOrders.authority.toString() == thisAskUser.user.toString(), "check ask open orders init correctly");
     assert.isTrue(bidOpenOrders.authority.toString() == thisBidUser.user.toString(), "check bid open orders init correctly");
   });
+
+  it("places new orders", async() => {
+    let thisAskUser = users[0];
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.newOrder(
+      {limitPrice: toFpLimitPrice(0.9, tickSizeNum), maxBaseQty: new BN(1_000_000)},
+      {...thisAskUser, ...auction}
+    ));
+    tx.add(genInstr.newOrder(
+      {limitPrice: toFpLimitPrice(0.9, tickSizeNum), maxBaseQty: new BN(1_000_000)},
+      {...thisAskUser, ...auction}
+    ));
+    await provider.send(tx, [thisAskUser.userKeypair], {skipPreflight: true});
+
+    let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisAskUser.openOrders);
+    assert.isTrue(thisOpenOrders.numOrders == 2, "check both orders have been placed");
+  });
+
+  it("cancels an order", async() => {
+    let thisAskUser = users[0];
+    let tx = new anchor.web3.Transaction;
+    let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisAskUser.openOrders);
+    let orderId = thisOpenOrders.orders[0];
+    console.log(thisOpenOrders.baseTokenLocked.toString());
+    tx.add(genInstr.cancelOrder(
+      {orderId},
+      {...thisAskUser, ...auction}
+    ));
+    await provider.send(tx, [thisAskUser.userKeypair], {skipPreflight: true});
+    thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisAskUser.openOrders);
+    console.log(await provider.connection.getTokenAccountBalance(thisAskUser.userBase));
+
+    assert.isTrue(thisOpenOrders.numOrders == 1, "check the order has been cancelled");
+  });
+
 
   interface Auction {
     // Accounts
@@ -247,12 +283,17 @@ describe("auction-house", () => {
       naclKeypair,
       naclPubkey,
       side,
-      maxOrders: new anchor.BN(1),
+      maxOrders: new anchor.BN(2),
     }
   }
 
   function toFp32(num: number): BN {
     return new BN(Math.floor(num * 2 ** 32));
+  }
+
+  function toFpLimitPrice(limitPrice: number, tickSize: number): BN {
+    let priceMultiple = new BN(Math.floor(limitPrice / tickSize));
+    return priceMultiple.mul(toFp32(tickSize));
   }
 
   async function getCreateAccountParams(program: anchor.Program<AuctionHouse>, provider: anchor.Provider, wallet: anchor.Wallet, newPubkey: PublicKey, space: number): Promise<anchor.web3.CreateAccountParams> {

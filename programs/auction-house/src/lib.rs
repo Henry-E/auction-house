@@ -5,7 +5,8 @@ use agnostic_orderbook::critbit::LeafNode;
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::state::{
-    get_side_from_order_id, Event, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
+    get_side_from_order_id, Event, EventQueue, EventQueueHeader, Side as AobSide,
+    EVENT_QUEUE_HEADER_LEN,
 };
 use agnostic_orderbook::utils::{fp32_div, fp32_mul};
 
@@ -67,15 +68,10 @@ pub mod auction_house {
 
     #[access_control(ctx.accounts.access_control_new_order(limit_price, max_base_qty))]
     pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) -> Result<()> {
-        instructions::new_order(ctx, limit_price, max_base_qty)?;
-
-        Err(error!(CustomErrors::NotImplemented))
-
-        // TODO
-        // Add the token transfer CPI calls
+        instructions::new_order(ctx, limit_price, max_base_qty)
     }
 
-    #[access_control(ctx.accounts.access_control_cancel_order(order_id))]
+    #[access_control(ctx.accounts.access_control_cancel_order(&order_id))]
     pub fn cancel_order(ctx: Context<NewOrder>, order_id: u128) -> Result<()> {
         // TODO
         // Move this to its own function & file when we're on a bigger monitor
@@ -96,12 +92,13 @@ pub mod auction_house {
         order_book.commit_changes();
 
         let open_orders = &mut *ctx.accounts.open_orders;
-        let order_idx = open_orders.find_order_index(order_id)?;
+        let order_idx = open_orders.find_order_index(&order_id)?;
         open_orders.orders.remove(order_idx);
         open_orders.num_orders = open_orders.num_orders.checked_sub(1).unwrap();
 
         match open_orders.side {
             Side::Ask => {
+                msg!("total_base_qty {}", total_base_qty);
                 open_orders.base_token_locked = open_orders
                     .base_token_locked
                     .checked_sub(total_base_qty)
@@ -126,9 +123,7 @@ pub mod auction_house {
                 )?;
             }
         }
-
-        Err(error!(CustomErrors::NotImplemented))
-        // Ok(())
+        Ok(())
     }
 
     #[access_control(ctx.accounts.access_control_new_encrypted_order(&nacl_pubkey))]
@@ -165,20 +160,14 @@ pub mod auction_house {
                     .base_token_locked
                     .checked_add(token_qty)
                     .unwrap();
-                token::transfer(
-                    ctx.accounts.transfer_user_base(),
-                    token_qty,
-                )?;
+                token::transfer(ctx.accounts.transfer_user_base(), token_qty)?;
             }
             Side::Bid => {
                 open_orders.quote_token_locked = open_orders
                     .quote_token_locked
                     .checked_add(token_qty)
                     .unwrap();
-                token::transfer(
-                    ctx.accounts.transfer_user_quote(),
-                    token_qty,
-                )?;
+                token::transfer(ctx.accounts.transfer_user_quote(), token_qty)?;
             }
         }
 
@@ -202,7 +191,7 @@ pub mod auction_house {
                     ctx.accounts
                         .transfer_base_vault()
                         .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
-                        this_order.token_qty,
+                    this_order.token_qty,
                 )?;
             }
             Side::Bid => {
@@ -214,7 +203,7 @@ pub mod auction_house {
                     ctx.accounts
                         .transfer_quote_vault()
                         .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
-                        this_order.token_qty,
+                    this_order.token_qty,
                 )?;
             }
         }
@@ -367,9 +356,8 @@ pub mod auction_house {
             if current_ask.price() > current_bid.price() {
                 msg!("Orders prices crossed before clearing even started");
                 auction.has_found_clearing_price = true;
-                return Ok(()); 
+                return Ok(());
             }
-
         } else {
             current_bid = bid_iter
                 .find(|this_node| this_node.key == auction.current_bid_key)
@@ -738,7 +726,7 @@ pub mod auction_house {
                         }
                     }
 
-                    let order_idx = user_open_orders.find_order_index(order_id)?;
+                    let order_idx = user_open_orders.find_order_index(&order_id)?;
                     user_open_orders.orders.remove(order_idx);
                     user_open_orders.num_orders =
                         user_open_orders.num_orders.checked_sub(1).unwrap();
@@ -777,7 +765,7 @@ pub mod auction_house {
 
         // We have to set open orders.free values to 0 before calling the CPI
         // because of an immutable borrow compile error. Technically it would be
-        // safe to omit setting the free values to 0 because of the anchor 
+        // safe to omit setting the free values to 0 because of the anchor
         // account close discriminator but better to be totally sure.
         let quote_token_free = open_orders.quote_token_free;
         let base_token_free = open_orders.base_token_free;
@@ -788,7 +776,7 @@ pub mod auction_house {
                 ctx.accounts
                     .transfer_quote_vault()
                     .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
-                    quote_token_free,
+                quote_token_free,
             )?;
         }
         if base_token_free > 0 {
@@ -796,7 +784,7 @@ pub mod auction_house {
                 ctx.accounts
                     .transfer_base_vault()
                     .with_signer(&[auction_seeds!(ctx.accounts.auction)]),
-                    base_token_free,
+                base_token_free,
             )?;
         }
 

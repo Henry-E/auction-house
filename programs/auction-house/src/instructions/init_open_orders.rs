@@ -7,7 +7,7 @@ use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
 
-use agnostic_orderbook::state::{Side as AobSide};
+use agnostic_orderbook::state::Side as AobSide;
 
 // Flexible on design decisions such as:
 // should we check that the user has the associated token accounts that will
@@ -27,7 +27,7 @@ pub struct InitOpenOrders<'info> {
         init,
         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump,
-        // TODO could try to add a macro / if statement to use less space
+        // TODO could add block {} with an if statement to use less space
         // if not an account for encrypted open orders
         space = (108 as usize).checked_add((88 as usize).checked_mul(max_orders as usize).unwrap()).unwrap(), 
         payer = user,
@@ -82,10 +82,17 @@ pub fn init_open_orders(ctx: Context<InitOpenOrders>, side: Side, max_orders: u8
     ctx.accounts.open_orders.set_inner(OpenOrders {
         bump: *ctx.bumps.get("open_orders").unwrap(),
         authority: ctx.accounts.user.key(),
-        side,
         max_orders,
+        side,
         // Everything else defaults to 0
-        ..(*ctx.accounts.open_orders).clone().into_inner()
+        nacl_pubkey: Vec::new(),
+        encrypted_orders: Vec::new(),
+        quote_token_locked: 0,
+        quote_token_free: 0,
+        base_token_locked: 0,
+        base_token_free: 0,
+        num_orders: 0,
+        orders: Vec::new(),
     });
 
     ctx.accounts.order_history.set_inner(OrderHistory {

@@ -42,7 +42,7 @@ pub struct InitAuction<'info> {
     #[account(
         init,
         token::mint = base_mint,
-        token::authority = auctioneer, // It should probably be the auction account, since it will sign
+        token::authority = auction, // It should probably be the auction account, since it will sign
         seeds = [QUOTE_VAULT.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
@@ -51,7 +51,7 @@ pub struct InitAuction<'info> {
     #[account(
         init,
         token::mint = base_mint,
-        token::authority = auctioneer, // It should probably be the auction account, since it will sign
+        token::authority = auction, // It should probably be the auction account, since it will sign
         seeds = [BASE_VAULT.as_bytes(), &args.auction_id, auctioneer.key().as_ref()],
         bump,
         payer = auctioneer,
@@ -118,6 +118,7 @@ pub fn init_auction(ctx: Context<InitAuction>, args: &InitAuctionArgs) -> Result
         end_decryption_phase: args.end_decryption_phase,
         are_asks_encrypted: args.are_asks_encrypted,
         are_bids_encrypted: args.are_bids_encrypted,
+        nacl_pubkey: args.nacl_pubkey.clone(),
         // Order book stuff
         event_queue: ctx.accounts.event_queue.key(),
         bids: ctx.accounts.bids.key(),
@@ -129,7 +130,18 @@ pub fn init_auction(ctx: Context<InitAuction>, args: &InitAuctionArgs) -> Result
         min_base_order_size: args.min_base_order_size,
         tick_size: args.tick_size,
         // Everything else defaults to 0
-        ..(*ctx.accounts.auction).clone().into_inner()
+        current_bid_key: 0,
+        current_ask_key: 0,
+        current_bid_quantity_filled: 0,
+        current_ask_quantity_filled: 0,
+        total_quantity_filled_so_far: 0,
+        has_found_clearing_price: false,
+        total_quantity_matched: 0,
+        remaining_bid_fills: 0,
+        remaining_ask_fills: 0,
+        final_bid_price: 0,
+        final_ask_price: 0,
+        clearing_price: 0,
     });
 
     // Init event queue
