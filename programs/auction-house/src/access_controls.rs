@@ -4,7 +4,7 @@ use crate::{account_data::*, error::CustomErrors};
 
 use agnostic_orderbook::{
     orderbook::OrderBookState,
-    state::{EventQueueHeader, Side as AobSide},
+    state::EventQueueHeader,
 };
 
 pub fn is_order_phase_active(clock: Clock, auction: &Auction) -> bool {

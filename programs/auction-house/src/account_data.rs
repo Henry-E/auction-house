@@ -1,10 +1,5 @@
 use anchor_lang::prelude::*;
 
-use bytemuck::try_from_bytes;
-
-use std::ops::Deref;
-
-// use agnostic_orderbook;
 use agnostic_orderbook::processor::new_order::Params;
 use agnostic_orderbook::state::{SelfTradeBehavior, Side as AobSide};
 
@@ -72,7 +67,9 @@ pub enum FinalPriceTypes {
 }
 
 impl Default for FinalPriceTypes {
-    fn default() -> Self { FinalPriceTypes::BestBid }
+    fn default() -> Self {
+        FinalPriceTypes::BestBid
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Debug)]
@@ -130,7 +127,7 @@ impl OpenOrders {
             post_only: true,
             post_allowed: true,
             // self trade behaviour is ignored, this is a vestigial argument
-            self_trade_behavior: agnostic_orderbook::state::SelfTradeBehavior::DecrementTake,
+            self_trade_behavior: SelfTradeBehavior::DecrementTake,
             match_limit: 1,
         }
     }
@@ -152,7 +149,9 @@ impl From<Side> for AobSide {
 }
 
 impl Default for Side {
-    fn default() -> Self { Side::Bid }
+    fn default() -> Self {
+        Side::Bid
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -169,4 +168,3 @@ pub struct OrderHistory {
     pub quote_amount_returned: u64,
     pub base_amount_returned: u64,
 }
-
