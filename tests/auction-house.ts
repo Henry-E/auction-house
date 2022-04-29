@@ -3,7 +3,7 @@ import { BN } from "@project-serum/anchor";
 import { Program, ProgramError } from "@project-serum/anchor";
 import { createAssociatedTokenAccount, createMint, createMintToCheckedInstruction, getAccount, getMint, mintTo, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { AuctionHouse } from "../target/types/auction_house";
-import { PublicKey, Keypair } from "@solana/web3.js";
+import { PublicKey, Keypair, Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import nacl from "tweetnacl";
 
 import * as genInstr from "../generated/instructions";
@@ -13,6 +13,7 @@ import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pub
 import { assert, expect } from "chai";
 import { fromCode } from "../generated/errors";
 // import { Side } from "../generated/types";
+import {Auction, initAuctionObj, User, initUser, toFp32, toFpLimitPrice, getCreateAccountParams, sleep} from "./sdk";
 
 describe("auction-house", () => {
 
@@ -20,7 +21,6 @@ describe("auction-house", () => {
   const provider = anchor.Provider.env();
   const wallet = provider.wallet as anchor.Wallet;
   anchor.setProvider(provider);
-
   const program = anchor.workspace.AuctionHouse as Program<AuctionHouse>;
 
   // This is probably a dumb way of doing this, the issue is that auctionId
@@ -32,16 +32,18 @@ describe("auction-house", () => {
   const minBaseOrderSize = new BN(1000);
   const tickSizeNum = 0.1;
   const tickSize = toFp32(tickSizeNum);
+  const orderPhaseLength = 8;
+  const decryptionPhaseLength = 2;
   const eventQueueBytes = 1000000;
   const bidsBytes = 64000;
   const asksBytes = 64000;
+  const maxOrders = new BN(2);
   
   let auction: Auction;
   let users: Array<User> = [];
-  let startOrderPhase: BN;
 
   it("inits the auction", async() => {
-    auction = await initAuctionObj(provider, wallet, auctionId, areAsksEncrypted, areBidsEncrypted, minBaseOrderSize, tickSize);
+    auction = await initAuctionObj(program, provider, wallet, auctionId, areAsksEncrypted, areBidsEncrypted, minBaseOrderSize, tickSize, orderPhaseLength, decryptionPhaseLength);
     let tx = new anchor.web3.Transaction;
 
     let eventQueueParams = await getCreateAccountParams(program, provider, wallet, auction.eventQueue, eventQueueBytes);
@@ -61,8 +63,8 @@ describe("auction-house", () => {
   });
 
   it("init open orders", async() => {
-    let thisAskUser = await initUser(provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(3_000_000), new anchor.BN(0));
-    let thisBidUser = await initUser(provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(2_200_000));
+    let thisAskUser = await initUser(program, provider, wallet, auction, new genTypes.Side.Ask(), new anchor.BN(3_000_000), new anchor.BN(0), maxOrders);
+    let thisBidUser = await initUser(program, provider, wallet, auction, new genTypes.Side.Bid(), new anchor.BN(0), new anchor.BN(2_200_000), maxOrders);
     users.push(thisAskUser, thisBidUser);
     let tx = new anchor.web3.Transaction;
     tx.add(genInstr.initOpenOrders(
@@ -243,7 +245,6 @@ describe("auction-house", () => {
     try {
       await provider.send(tx);
     } catch(e) {
-      console.log(e.toString())
       // 0x177f Error indicates there are no events left to process
       if (e.toString().includes("0x177f")){
         does_function_error = true;
@@ -267,200 +268,14 @@ describe("auction-house", () => {
     console.log(await provider.connection.getTokenAccountBalance(users[1].userQuote));
   });
   
-
-  interface Auction {
-    // Accounts
-    auctioneer: PublicKey,
-    auction: PublicKey,
-    eventQueue: PublicKey,
-    eventQueueKeypair: Keypair,
-    bids: PublicKey,
-    bidsKeypair: Keypair,
-    asks: PublicKey,
-    asksKeypair: Keypair,
-    quoteMint: PublicKey,
-    baseMint: PublicKey,
-    quoteVault: PublicKey,
-    baseVault: PublicKey,
-    rent: PublicKey,
-    tokenProgram: PublicKey,
-    systemProgram: PublicKey,
-    // Args
-    auctionId: Array<number>,
-    startOrderPhase: BN,
-    endOrderPhase: BN,
-    endDecryptionPhase: BN,
-    areAsksEncrypted: boolean,
-    areBidsEncrypted: boolean,
-    minBaseOrderSize: BN,
-    tickSize: BN, // FP32
-    naclPubkey: Array<number>,
-    naclKeypair?: nacl.BoxKeyPair,
-  }
-
-  async function initAuctionObj(provider: anchor.Provider, wallet: anchor.Wallet, auctionId: Array<number>, areAsksEncrypted: boolean, areBidsEncrypted: boolean, minBaseOrderSize: BN, tickSize: BN): Promise<Auction> {
-    let baseMint = await createMint(provider.connection,
-        wallet.payer,
-        wallet.publicKey,
-        null,
-        6
-      );
-    let quoteMint = await createMint(provider.connection,
-        wallet.payer,
-        wallet.publicKey,
-        null,
-        6
-      );
-    let tx = new anchor.web3.Transaction();
-    let nowBn = new anchor.BN(Date.now() / 1000);
-    // let auctionIdArray = Array.from(auctionId);
-    let [auction] = await anchor.web3.PublicKey.findProgramAddress(
-      // TODO toBuffer might not be LE (lower endian) by default
-      [Buffer.from("auction"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
-      program.programId
-    )
-    let [quoteVault] = await anchor.web3.PublicKey.findProgramAddress(
-      // TODO toBuffer might not be LE (lower endian) by default
-      [Buffer.from("quote_vault"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
-      program.programId
-    )
-    let [baseVault] = await anchor.web3.PublicKey.findProgramAddress(
-      // TODO toBuffer might not be LE (lower endian) by default
-      [Buffer.from("base_vault"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
-      program.programId
-    )
-    let eventQueueKeypair = new anchor.web3.Keypair();
-    let eventQueue = eventQueueKeypair.publicKey;
-    let bidsKeypair = new anchor.web3.Keypair();
-    let bids = bidsKeypair.publicKey;
-    let asksKeypair = new anchor.web3.Keypair();
-    let asks = asksKeypair.publicKey;
-    let naclKeypair = nacl.box.keyPair();
-    let naclPubkey = Array.from(naclKeypair.publicKey);
-    return {
-      auctioneer: wallet.publicKey,
-      auction,
-      eventQueue,
-      eventQueueKeypair,
-      bids,
-      bidsKeypair,
-      asks,
-      asksKeypair,
-      quoteMint,
-      baseMint,
-      quoteVault,
-      baseVault,
-      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: anchor.web3.SystemProgram.programId,
-      // Args
-      auctionId,
-      startOrderPhase: nowBn,
-      endOrderPhase: nowBn.add(new anchor.BN(8)),
-      endDecryptionPhase: nowBn.add(new anchor.BN(10)),
-      areAsksEncrypted,
-      areBidsEncrypted,
-      minBaseOrderSize,
-      tickSize,
-      naclKeypair,
-      naclPubkey,
-    }
-  }
-
-  interface User {
-    userKeypair: Keypair,
-    user: PublicKey,
-    openOrders: PublicKey,
-    orderHistory: PublicKey,
-    userBase: PublicKey,
-    userQuote: PublicKey,
-    naclPubkey: Array<number>,
-    naclKeypair?: nacl.BoxKeyPair,
-    side: genTypes.SideKind,
-    maxOrders: BN,
-  }
-
-  async function initUser(provider: anchor.Provider, wallet: anchor.Wallet, auction: Auction, side: genTypes.SideKind, numBaseTokens: BN, numQuoteTokens: BN): Promise<User>  {
-    let userKeypair = new anchor.web3.Keypair();
-    let user = userKeypair.publicKey;
-    await provider.connection.requestAirdrop(user, 1_000_000_00)
-    let userBase = await createAssociatedTokenAccount(
-      provider.connection,
-      wallet.payer,
-      auction.baseMint,
-      user
-    );
-    let userQuote = await createAssociatedTokenAccount(
-      provider.connection,
-      wallet.payer,
-      auction.quoteMint,
-      user
-    );
-    await mintTo(
-      provider.connection,
-      wallet.payer,
-      auction.baseMint,
-      userBase,
-      wallet.publicKey,
-      numBaseTokens.toNumber(),
-    );
-    await mintTo(
-      provider.connection,
-      wallet.payer,
-      auction.quoteMint,
-      userQuote,
-      wallet.publicKey,
-      numQuoteTokens.toNumber(),
-    );
-      // [Buffer.from("quote_vault"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
-    let [openOrders] = await anchor.web3.PublicKey.findProgramAddress(
-      [user.toBuffer(), Buffer.from("open_orders"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
-      program.programId
-    );
-    let [orderHistory] = await anchor.web3.PublicKey.findProgramAddress(
-      [user.toBuffer(), Buffer.from("order_history"), Buffer.from(auctionId), wallet.publicKey.toBuffer()],
-      program.programId
-    );
-    let naclKeypair = nacl.box.keyPair();
-    let naclPubkey = Array.from(naclKeypair.publicKey);
-    return {
-      userKeypair,
-      user,
-      openOrders,
-      orderHistory,
-      userBase,
-      userQuote,
-      naclKeypair,
-      naclPubkey,
-      side,
-      maxOrders: new anchor.BN(3),
-    }
-  }
-
-  function toFp32(num: number): BN {
-    return new BN(Math.floor(num * 2 ** 32));
-  }
-
-  function toFpLimitPrice(limitPrice: number, tickSize: number): BN {
-    let priceMultiple = new BN(Math.floor(limitPrice / tickSize));
-    return priceMultiple.mul(toFp32(tickSize));
-  }
-
-  async function getCreateAccountParams(program: anchor.Program<AuctionHouse>, provider: anchor.Provider, wallet: anchor.Wallet, newPubkey: PublicKey, space: number): Promise<anchor.web3.CreateAccountParams> {
-    let rentExemptionAmount = await provider.connection.getMinimumBalanceForRentExemption(space);
-    return {
-      fromPubkey: wallet.publicKey,
-      newAccountPubkey: newPubkey,
-      lamports: rentExemptionAmount,
-      space,
-      programId: program.programId
-    }
-  }
-
-  function sleep(ms: number) {
-    console.log("Sleeping for", ms , "ms seconds");
-    return new Promise((resolve) => setTimeout(resolve, ms * 1000));
-  }
-
-
+  it("close the AOB accounts and retrieve rent", async() => {
+    let solBefore = await provider.connection.getBalance(wallet.publicKey);
+    let tx = new anchor.web3.Transaction;
+    tx.add(genInstr.closeAobAccounts(
+      {...auction}
+    ));
+    await provider.send(tx, [], {skipPreflight: true});
+    let solAfter = await provider.connection.getBalance(wallet.publicKey);
+    assert.isTrue(solAfter > solBefore, "checking the Sol balance has increase from reclaiming rent");
+  });
 });
