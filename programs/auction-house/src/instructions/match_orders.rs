@@ -4,8 +4,7 @@ use anchor_lang::prelude::*;
 
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::{
-    Event, EventQueue, EventQueueHeader, Side as AobSide,
-    EVENT_QUEUE_HEADER_LEN,
+    Event, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
 };
 use agnostic_orderbook::utils::{fp32_div, fp32_mul};
 
@@ -209,8 +208,7 @@ pub fn match_orders(ctx: Context<MatchOrders>, limit: u16) -> Result<()> {
     }
 
     order_book.commit_changes();
-    let mut event_queue_header_data: &mut [u8] =
-        &mut ctx.accounts.event_queue.data.borrow_mut();
+    let mut event_queue_header_data: &mut [u8] = &mut ctx.accounts.event_queue.data.borrow_mut();
     event_queue
         .header
         .serialize(&mut event_queue_header_data)

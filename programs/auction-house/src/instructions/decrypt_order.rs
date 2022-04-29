@@ -3,10 +3,7 @@ use std::convert::TryInto;
 use anchor_lang::prelude::*;
 
 use agnostic_orderbook::orderbook::OrderBookState;
-use agnostic_orderbook::state::{
-    EventQueue, EventQueueHeader,
-    EVENT_QUEUE_HEADER_LEN,
-};
+use agnostic_orderbook::state::{EventQueue, EventQueueHeader, EVENT_QUEUE_HEADER_LEN};
 use agnostic_orderbook::utils::fp32_mul;
 
 use xsalsa20poly1305::{

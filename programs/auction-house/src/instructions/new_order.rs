@@ -7,12 +7,8 @@ use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
 
-use agnostic_orderbook::critbit::Slab;
 use agnostic_orderbook::orderbook::OrderBookState;
-use agnostic_orderbook::processor::new_order::Params;
-use agnostic_orderbook::state::{
-    AccountTag, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
-};
+use agnostic_orderbook::state::{EventQueue, EventQueueHeader, EVENT_QUEUE_HEADER_LEN};
 use agnostic_orderbook::utils::fp32_mul;
 
 #[derive(Accounts)]

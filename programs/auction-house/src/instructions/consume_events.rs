@@ -1,9 +1,7 @@
-
 use anchor_lang::prelude::*;
 
 use agnostic_orderbook::state::{
-    Event, EventQueue, EventQueueHeader, Side as AobSide,
-    EVENT_QUEUE_HEADER_LEN,
+    Event, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
 };
 use agnostic_orderbook::utils::fp32_mul;
 
@@ -32,11 +30,7 @@ pub struct ConsumeEvents<'info> {
     // Plus a bunch of Open orders accounts in remaining accounts
 }
 
-pub fn consume_events(
-    ctx: Context<ConsumeEvents>,
-    limit: u16,
-    allow_no_op: bool,
-) -> Result<()> {
+pub fn consume_events(ctx: Context<ConsumeEvents>, limit: u16, allow_no_op: bool) -> Result<()> {
     let header = {
         let mut event_queue_data: &[u8] =
             &ctx.accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
@@ -66,8 +60,7 @@ pub fn consume_events(
                 taker_callback_info: _,
             } => {
                 let user_side = taker_side.opposite();
-                let user_pubkey =
-                    Pubkey::new_from_array(maker_callback_info.try_into().unwrap());
+                let user_pubkey = Pubkey::new_from_array(maker_callback_info.try_into().unwrap());
                 let user_account_info = ctx
                     .remaining_accounts
                     .iter()
@@ -160,8 +153,7 @@ pub fn consume_events(
 
                 let order_idx = user_open_orders.find_order_index(&order_id)?;
                 user_open_orders.orders.remove(order_idx);
-                user_open_orders.num_orders =
-                    user_open_orders.num_orders.checked_sub(1).unwrap();
+                user_open_orders.num_orders = user_open_orders.num_orders.checked_sub(1).unwrap();
 
                 user_open_orders.exit(ctx.program_id)?;
             }

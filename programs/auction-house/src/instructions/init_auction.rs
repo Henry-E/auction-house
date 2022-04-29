@@ -7,7 +7,7 @@ use crate::consts::*;
 use crate::error::CustomErrors;
 
 use agnostic_orderbook::critbit::Slab;
-use agnostic_orderbook::state::{AccountTag, EventQueueHeader};
+use agnostic_orderbook::state::EventQueueHeader;
 
 // Flexible on design decisions such as:
 // - Using start time as part of the seeds to allow more than one auction

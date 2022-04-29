@@ -2,10 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::{account_data::*, error::CustomErrors};
 
-use agnostic_orderbook::{
-    orderbook::OrderBookState,
-    state::EventQueueHeader,
-};
+use agnostic_orderbook::{orderbook::OrderBookState, state::EventQueueHeader};
 
 pub fn is_order_phase_active(clock: Clock, auction: &Auction) -> bool {
     if clock.unix_timestamp < auction.start_order_phase {
