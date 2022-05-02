@@ -76,7 +76,7 @@ impl InitOpenOrders<'_> {
             return Err(error!(CustomErrors::OrderPhaseNotActive));
         }
         // Compute wise we can comfortably handly decrypty 6 orders in 200k CUs
-        if max_orders < 1 && 6 < max_orders {
+        if max_orders < 1 || 6 < max_orders {
             return Err(error!(CustomErrors::MaxOrdersValueIsInvalid));
         }
         Ok(())
