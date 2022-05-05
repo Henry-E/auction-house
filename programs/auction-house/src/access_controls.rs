@@ -72,8 +72,6 @@ pub fn validate_price_and_qty(
     limit_price: u64,
     max_base_qty: u64,
 ) -> Result<()> {
-    // TODO need to fix this later because the modulo maths calculation is
-    // incorrect
     if limit_price % auction.tick_size != 0 {
         msg!("limit {}, tick {}", limit_price, auction.tick_size);
         return Err(error!(CustomErrors::LimitPriceNotAMultipleOfTickSize));
