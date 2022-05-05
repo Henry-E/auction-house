@@ -11,6 +11,13 @@ export function useLocalStorageStringState(
       ? localStorage.getItem(key) || defaultState
       : defaultState || "";
 
+  if (typeof window !== "undefined" && !localStorage.getItem(key)) {
+    if (state) {
+      localStorage.setItem(key, state);
+    } else {
+      localStorage.removeItem(key);
+    }
+  }
   const [, notify] = useState(key + "\n" + state);
 
   useEffect(() => {

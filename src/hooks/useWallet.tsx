@@ -1,7 +1,8 @@
+import { Provider, setProvider } from "@project-serum/anchor";
 import { useEffect, useMemo } from "react";
+import useConnectionStore from "../stores/ConnectionStore";
 
 import { notify } from "../stores/NotificationStore";
-import { fetchMintAndTokenAccount } from "../stores/TokenStore";
 import useWalletStore, {
   DEFAULT_PROVIDER,
   getWalletProviderByUrl,
@@ -71,6 +72,7 @@ export default function useWallet() {
   useEffect(() => {
     if (!wallet) return;
     wallet.on("connect", async () => {
+      console.log("wallet connect");
       useWalletStore.setState((s) => {
         s.connected = true;
       });
@@ -82,6 +84,13 @@ export default function useWallet() {
           "..." +
           wallet!.publicKey!.toString().substr(-5),
       });
+
+      setProvider(
+        new Provider(useConnectionStore.getState().connection, wallet as any, {
+          preflightCommitment: "confirmed",
+          commitment: "processed",
+        })
+      );
 
       // load wallet dependent data
       // note: There's the possibility of a race condition here. Sometimes wallet connect
