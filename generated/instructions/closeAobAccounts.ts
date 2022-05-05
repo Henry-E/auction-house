@@ -14,7 +14,7 @@ export interface CloseAobAccountsAccounts {
 
 export function closeAobAccounts(accounts: CloseAobAccountsAccounts) {
   const keys = [
-    { pubkey: accounts.auctioneer, isSigner: true, isWritable: true },
+    { pubkey: accounts.auctioneer, isSigner: false, isWritable: true },
     { pubkey: accounts.auction, isSigner: false, isWritable: true },
     { pubkey: accounts.eventQueue, isSigner: false, isWritable: true },
     { pubkey: accounts.bids, isSigner: false, isWritable: true },

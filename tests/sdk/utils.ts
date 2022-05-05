@@ -23,7 +23,11 @@ export async function getCreateAccountParams(program: anchor.Program<AuctionHous
     }
   }
 
-export function sleep(ms: number) {
-    console.log("Sleeping for", ms , "ms seconds");
-    return new Promise((resolve) => setTimeout(resolve, ms * 1000));
+export function sleep(seconds: number, print?: boolean) {
+    if (print == false) {
+    } else {
+      console.log("Sleeping for", seconds , " seconds");
+    }
+
+    return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
   }

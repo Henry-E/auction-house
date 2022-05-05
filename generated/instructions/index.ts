@@ -1,4 +1,3 @@
-export { initialize } from "./initialize"
 export {
   initAuction,
   InitAuctionArgs,
