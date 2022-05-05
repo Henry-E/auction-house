@@ -70,12 +70,10 @@ describe("auction-house", () => {
     tx.add(genInstr.initOpenOrders(
       {...thisAskUser}, {...thisAskUser, ...auction}
     ));
-    await provider.send(tx, [thisAskUser.userKeypair], {skipPreflight: true});
-    tx = new anchor.web3.Transaction;
     tx.add(genInstr.initOpenOrders(
       {...thisBidUser}, {...thisBidUser, ...auction}
     ));
-    await provider.send(tx, [thisBidUser.userKeypair], {skipPreflight: true});
+    await provider.send(tx, [thisAskUser.userKeypair, thisBidUser.userKeypair], {skipPreflight: true});
 
     let askOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisAskUser.openOrders);
     let bidOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, thisBidUser.openOrders);

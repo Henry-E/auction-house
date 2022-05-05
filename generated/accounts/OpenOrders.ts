@@ -8,6 +8,7 @@ export interface OpenOrdersFields {
   bump: number
   authority: PublicKey
   thisOpenOrders: PublicKey
+  auction: PublicKey
   maxOrders: number
   side: types.SideKind
   naclPubkey: Array<number>
@@ -24,6 +25,7 @@ export interface OpenOrdersJSON {
   bump: number
   authority: string
   thisOpenOrders: string
+  auction: string
   maxOrders: number
   side: types.SideJSON
   naclPubkey: Array<number>
@@ -40,6 +42,7 @@ export class OpenOrders {
   readonly bump: number
   readonly authority: PublicKey
   readonly thisOpenOrders: PublicKey
+  readonly auction: PublicKey
   readonly maxOrders: number
   readonly side: types.SideKind
   readonly naclPubkey: Array<number>
@@ -59,6 +62,7 @@ export class OpenOrders {
     borsh.u8("bump"),
     borsh.publicKey("authority"),
     borsh.publicKey("thisOpenOrders"),
+    borsh.publicKey("auction"),
     borsh.u8("maxOrders"),
     types.Side.layout("side"),
     borsh.vecU8("naclPubkey"),
@@ -75,6 +79,7 @@ export class OpenOrders {
     this.bump = fields.bump
     this.authority = fields.authority
     this.thisOpenOrders = fields.thisOpenOrders
+    this.auction = fields.auction
     this.maxOrders = fields.maxOrders
     this.side = fields.side
     this.naclPubkey = fields.naclPubkey
@@ -134,6 +139,7 @@ export class OpenOrders {
       bump: dec.bump,
       authority: dec.authority,
       thisOpenOrders: dec.thisOpenOrders,
+      auction: dec.auction,
       maxOrders: dec.maxOrders,
       side: types.Side.fromDecoded(dec.side),
       naclPubkey: Array.from(dec.naclPubkey),
@@ -154,6 +160,7 @@ export class OpenOrders {
       bump: this.bump,
       authority: this.authority.toString(),
       thisOpenOrders: this.thisOpenOrders.toString(),
+      auction: this.auction.toString(),
       maxOrders: this.maxOrders,
       side: this.side.toJSON(),
       naclPubkey: this.naclPubkey,
@@ -172,6 +179,7 @@ export class OpenOrders {
       bump: obj.bump,
       authority: new PublicKey(obj.authority),
       thisOpenOrders: new PublicKey(obj.thisOpenOrders),
+      auction: new PublicKey(obj.auction),
       maxOrders: obj.maxOrders,
       side: types.Side.fromJSON(obj.side),
       naclPubkey: obj.naclPubkey,

@@ -6,6 +6,7 @@ import { PROGRAM_ID } from "../programId"
 
 export interface OrderHistoryFields {
   bump: number
+  auction: PublicKey
   side: types.SideKind
   quoteAmountReturned: BN
   baseAmountReturned: BN
@@ -13,6 +14,7 @@ export interface OrderHistoryFields {
 
 export interface OrderHistoryJSON {
   bump: number
+  auction: string
   side: types.SideJSON
   quoteAmountReturned: string
   baseAmountReturned: string
@@ -20,6 +22,7 @@ export interface OrderHistoryJSON {
 
 export class OrderHistory {
   readonly bump: number
+  readonly auction: PublicKey
   readonly side: types.SideKind
   readonly quoteAmountReturned: BN
   readonly baseAmountReturned: BN
@@ -28,6 +31,7 @@ export class OrderHistory {
 
   static readonly layout = borsh.struct([
     borsh.u8("bump"),
+    borsh.publicKey("auction"),
     types.Side.layout("side"),
     borsh.u64("quoteAmountReturned"),
     borsh.u64("baseAmountReturned"),
@@ -35,6 +39,7 @@ export class OrderHistory {
 
   constructor(fields: OrderHistoryFields) {
     this.bump = fields.bump
+    this.auction = fields.auction
     this.side = fields.side
     this.quoteAmountReturned = fields.quoteAmountReturned
     this.baseAmountReturned = fields.baseAmountReturned
@@ -83,6 +88,7 @@ export class OrderHistory {
 
     return new OrderHistory({
       bump: dec.bump,
+      auction: dec.auction,
       side: types.Side.fromDecoded(dec.side),
       quoteAmountReturned: dec.quoteAmountReturned,
       baseAmountReturned: dec.baseAmountReturned,
@@ -92,6 +98,7 @@ export class OrderHistory {
   toJSON(): OrderHistoryJSON {
     return {
       bump: this.bump,
+      auction: this.auction.toString(),
       side: this.side.toJSON(),
       quoteAmountReturned: this.quoteAmountReturned.toString(),
       baseAmountReturned: this.baseAmountReturned.toString(),
@@ -101,6 +108,7 @@ export class OrderHistory {
   static fromJSON(obj: OrderHistoryJSON): OrderHistory {
     return new OrderHistory({
       bump: obj.bump,
+      auction: new PublicKey(obj.auction),
       side: types.Side.fromJSON(obj.side),
       quoteAmountReturned: new BN(obj.quoteAmountReturned),
       baseAmountReturned: new BN(obj.baseAmountReturned),

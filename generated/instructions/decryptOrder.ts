@@ -24,7 +24,7 @@ export function decryptOrder(
   accounts: DecryptOrderAccounts
 ) {
   const keys = [
-    { pubkey: accounts.auctioneer, isSigner: true, isWritable: false },
+    { pubkey: accounts.auctioneer, isSigner: false, isWritable: false },
     { pubkey: accounts.auction, isSigner: false, isWritable: true },
     { pubkey: accounts.openOrders, isSigner: false, isWritable: true },
     { pubkey: accounts.eventQueue, isSigner: false, isWritable: true },
