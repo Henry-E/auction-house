@@ -1,13 +1,14 @@
 use anchor_lang::prelude::*;
 
-use account_data::*;
 use instructions::*;
+use types::*;
 
 mod access_controls;
-mod account_data;
 mod consts;
 mod error;
 mod instructions;
+pub mod program_accounts;
+pub mod types; // `accounts` is already in use in this file, so we call the folder `program_accounts`
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 

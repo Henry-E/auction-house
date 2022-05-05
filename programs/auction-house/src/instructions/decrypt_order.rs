@@ -12,9 +12,10 @@ use xsalsa20poly1305::{
 };
 
 use crate::access_controls::*;
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
+use crate::types::*;
 
 #[derive(Accounts)]
 pub struct DecryptOrder<'info> {
@@ -27,7 +28,7 @@ pub struct DecryptOrder<'info> {
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
-        seeds = [&open_orders.authority.as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auctioneer.key().as_ref()],
+        seeds = [open_orders.authority.as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auctioneer.key().as_ref()],
         bump = open_orders.bump,
         mut
     )]

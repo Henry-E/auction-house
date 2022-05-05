@@ -3,9 +3,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, TokenAccount};
 
 use crate::access_controls::*;
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
+use crate::types::*;
 
 // Flexible on design decisions such as:
 // should we check that the user has the associated token accounts that will
@@ -26,12 +27,12 @@ pub struct InitOpenOrders<'info> {
         seeds = [user.key().as_ref(), OPEN_ORDERS.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
         bump,
         space = {
-            let mut this_space = 140 as usize;
+            let mut this_space = 140_usize;
             if (auction.are_asks_encrypted && side == Side::Ask) || (auction.are_bids_encrypted && side == Side::Bid) {
                 msg!("max orders {}", max_orders);
-                this_space = this_space.checked_add((80 as usize).checked_mul(max_orders as usize).unwrap()).unwrap();
+                this_space = this_space.checked_add(80_usize.checked_mul(max_orders as usize).unwrap()).unwrap();
             } else {
-                this_space = this_space.checked_add((16 as usize).checked_mul(max_orders as usize).unwrap()).unwrap();
+                this_space = this_space.checked_add(16_usize.checked_mul(max_orders as usize).unwrap()).unwrap();
             }
             msg!("space for this open orders {}", this_space);
             this_space
@@ -76,7 +77,7 @@ impl InitOpenOrders<'_> {
             return Err(error!(CustomErrors::OrderPhaseNotActive));
         }
         // Compute wise we can comfortably handly decrypty 6 orders in 200k CUs
-        if max_orders < 1 || 6 < max_orders {
+        if !(1..=6).contains(&max_orders) {
             return Err(error!(CustomErrors::MaxOrdersValueIsInvalid));
         }
         Ok(())

@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token;
 
-use crate::account_data::*;
 use crate::consts::*;
 use crate::instructions::NewEncryptedOrder;
+use crate::program_accounts::*;
+use crate::types::*;
 
 pub fn cancel_encrypted_order(ctx: Context<NewEncryptedOrder>, order_idx: u8) -> Result<()> {
     let open_orders = &mut *ctx.accounts.open_orders;

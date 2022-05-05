@@ -5,10 +5,11 @@ use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::get_side_from_order_id;
 use agnostic_orderbook::utils::fp32_mul;
 
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
 use crate::instructions::NewOrder;
+use crate::program_accounts::*;
+use crate::types::*;
 
 pub fn cancel_order(ctx: Context<NewOrder>, order_id: u128) -> Result<()> {
     let mut order_book = OrderBookState::new_safe(
@@ -20,7 +21,7 @@ pub fn cancel_order(ctx: Context<NewOrder>, order_id: u128) -> Result<()> {
     let slab = order_book.get_tree(get_side_from_order_id(order_id));
     let (node, _) = slab
         .remove_by_key(order_id)
-        .ok_or(error!(CustomErrors::OrderIdNotFound))?;
+        .ok_or_else(|| error!(CustomErrors::OrderIdNotFound))?;
     let leaf_node = node.as_leaf().unwrap();
     let total_base_qty = leaf_node.base_quantity;
     let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price());

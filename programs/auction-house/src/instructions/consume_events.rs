@@ -7,9 +7,9 @@ use agnostic_orderbook::utils::fp32_mul;
 
 use std::convert::TryInto;
 
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
 
 #[derive(Accounts)]
 pub struct ConsumeEvents<'info> {
@@ -65,9 +65,9 @@ pub fn consume_events(ctx: Context<ConsumeEvents>, limit: u16, allow_no_op: bool
                     .remaining_accounts
                     .iter()
                     .find(|remaining_account| remaining_account.key() == user_pubkey)
-                    .ok_or(error!(
-                        CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts
-                    ))?;
+                    .ok_or_else(|| {
+                        error!(CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts)
+                    })?;
                 let mut user_open_orders: Account<OpenOrders> =
                     Account::try_from(user_account_info)?;
                 // TODO what (if any) account validation is necessary?
@@ -114,9 +114,9 @@ pub fn consume_events(ctx: Context<ConsumeEvents>, limit: u16, allow_no_op: bool
                     .remaining_accounts
                     .iter()
                     .find(|remaining_account| remaining_account.key() == user_pubkey)
-                    .ok_or(error!(
-                        CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts
-                    ))?;
+                    .ok_or_else(|| {
+                        error!(CustomErrors::MissingOpenOrdersPubkeyInRemainingAccounts)
+                    })?;
                 let mut user_open_orders: Account<OpenOrders> =
                     Account::try_from(user_account_info)?;
                 // TODO what (if any) account validation is necessary?

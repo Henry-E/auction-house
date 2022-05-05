@@ -2,9 +2,10 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
+use crate::types::*;
 
 use agnostic_orderbook::critbit::Slab;
 use agnostic_orderbook::state::EventQueueHeader;
@@ -79,28 +80,15 @@ impl InitAuction<'_> {
         if args.end_decryption_phase < args.end_order_phase {
             return Err(error!(CustomErrors::InvalidDecryptionEndTime));
         }
-        if args.min_base_order_size <= 0 {
+        if args.min_base_order_size == 0 {
             return Err(error!(CustomErrors::InvalidMinBaseOrderSize));
         }
-        if args.tick_size <= 0 {
+        if args.tick_size == 0 {
             return Err(error!(CustomErrors::InvalidTickSize));
         }
 
         Ok(())
     }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct InitAuctionArgs {
-    pub auction_id: [u8; 10],
-    pub start_order_phase: i64,
-    pub end_order_phase: i64,
-    pub end_decryption_phase: i64,
-    pub are_asks_encrypted: bool,
-    pub are_bids_encrypted: bool,
-    pub nacl_pubkey: Vec<u8>, // 32 bytes
-    pub min_base_order_size: u64,
-    pub tick_size: u64,
 }
 
 ///

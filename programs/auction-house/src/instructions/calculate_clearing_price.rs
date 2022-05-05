@@ -5,9 +5,9 @@ use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::Side as AobSide;
 
 use crate::access_controls::*;
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
 
 #[derive(Accounts)]
 pub struct CalculateClearingPrice<'info> {
@@ -91,10 +91,10 @@ pub fn calculate_clearing_price(ctx: Context<CalculateClearingPrice>, limit: u16
     } else {
         current_bid = bid_iter
             .find(|this_node| this_node.key == auction.current_bid_key)
-            .ok_or(error!(CustomErrors::NodeKeyNotFound))?;
+            .ok_or_else(|| error!(CustomErrors::NodeKeyNotFound))?;
         current_ask = ask_iter
             .find(|this_node| this_node.key == auction.current_ask_key)
-            .ok_or(error!(CustomErrors::NodeKeyNotFound))?;
+            .ok_or_else(|| error!(CustomErrors::NodeKeyNotFound))?;
     }
 
     for _ in 0..limit {

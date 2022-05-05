@@ -2,9 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
 
 // Flexible on design decisions such as:
 // whether this function should be signed by the auctioneer

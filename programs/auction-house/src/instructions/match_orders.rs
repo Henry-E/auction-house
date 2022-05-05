@@ -9,9 +9,9 @@ use agnostic_orderbook::state::{
 use agnostic_orderbook::utils::{fp32_div, fp32_mul};
 
 use crate::access_controls::*;
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
 
 #[derive(Accounts)]
 pub struct MatchOrders<'info> {
@@ -89,12 +89,11 @@ pub fn match_orders(ctx: Context<MatchOrders>, limit: u16) -> Result<()> {
     )?;
 
     // Process all the bids first, then move onto the asks
-    let side: AobSide;
-    if order_book.bids_is_empty() {
-        side = AobSide::Ask;
+    let side: AobSide = if order_book.bids_is_empty() {
+        AobSide::Ask
     } else {
-        side = AobSide::Bid;
-    }
+        AobSide::Bid
+    };
 
     for _ in 0..limit {
         // bbo: best bid or offer

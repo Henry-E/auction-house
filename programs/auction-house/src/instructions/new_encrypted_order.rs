@@ -3,9 +3,10 @@ use anchor_spl::token;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::access_controls::*;
-use crate::account_data::*;
 use crate::consts::*;
 use crate::error::CustomErrors;
+use crate::program_accounts::*;
+use crate::types::*;
 
 #[derive(Accounts)]
 pub struct NewEncryptedOrder<'info> {
@@ -80,15 +81,13 @@ impl NewEncryptedOrder<'_> {
         let auction = self.auction.clone().into_inner();
         let open_orders = self.open_orders.clone().into_inner();
 
-        // This check will allow encrypted orders to be cancelled after the
-        // decryption period finishes. Needed in case there are leftover
-        // undecrypted orders.
-        // TODO
-        // Restructure this new if statement better and return a clearer error
-        if clock.unix_timestamp < auction.end_decryption_phase {
-            if !is_order_phase_active(clock, &auction) {
-                return Err(error!(CustomErrors::OrderPhaseNotActive));
-            }
+        // Encrypted orders can be cancelled only during the order phase or after
+        // the decryption phase is over.
+        // Needed in case there are still encrypted orders leftover after the decryption phase ends.
+        if clock.unix_timestamp < auction.end_decryption_phase
+            && !is_order_phase_active(clock, &auction)
+        {
+            return Err(error!(CustomErrors::OrderPhaseNotActive));
         }
         encrypted_orders_only(&auction, &open_orders)?;
 
