@@ -29,10 +29,10 @@ describe("stress-tests", () => {
     
     let auction: Auction;
     let users: Array<User> = [];
-    let numUsers = 600;
+    let numUsers = 300;
     let groupedNum = 50;
-    const orderPhaseLength = 600;
-    let maxNumOrders = 1000;
+    const orderPhaseLength = 310;
+    let maxNumOrders = 500;
     // const bidsBytes = 10_000;
     const bidsBytes = (104 + (80+32) * maxNumOrders);
     const asksBytes = bidsBytes;
@@ -183,13 +183,13 @@ describe("stress-tests", () => {
         while(true) {
             try {
                 let tx = new anchor.web3.Transaction;
-                tx.add(genInstr.calculateClearingPrice(
+                tx.add(genInstr.matchOrders(
                 {limit: new BN(limit)},
                 {...auction}
                 ));
                 await provider.send(tx, [], {skipPreflight: true});
             } catch (e) {
-                console.log(e)
+                // console.log(e)
                 break
             }
         }
