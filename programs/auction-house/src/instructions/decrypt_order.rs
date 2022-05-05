@@ -19,7 +19,9 @@ use crate::types::*;
 
 #[derive(Accounts)]
 pub struct DecryptOrder<'info> {
-    pub auctioneer: Signer<'info>,
+    // Doesn't need to be a signer because the encryption will fail anyway without
+    // the correct shared key
+    pub auctioneer: SystemAccount<'info>,
     // Program Accounts
     #[account(
         seeds = [AUCTION.as_bytes(), &auction.auction_id, auctioneer.key().as_ref()],

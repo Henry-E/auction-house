@@ -12,6 +12,7 @@ pub struct OpenOrders {
     pub bump: u8,
     pub authority: Pubkey,
     pub this_open_orders: Pubkey,
+    pub auction: Pubkey,
     // TODO: I don't think we need a max num orders param
     // or to track it, because the program should error if too much
     // data is accessed or written to.

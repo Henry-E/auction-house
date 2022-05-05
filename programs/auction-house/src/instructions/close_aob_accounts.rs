@@ -12,7 +12,7 @@ use crate::program_accounts::*;
 pub struct CloseAobAccounts<'info> {
     // Technically doesn't need to be a signer for this function
     #[account(mut)]
-    pub auctioneer: Signer<'info>,
+    pub auctioneer: SystemAccount<'info>,
     // Program Accounts
     #[account(
         seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],

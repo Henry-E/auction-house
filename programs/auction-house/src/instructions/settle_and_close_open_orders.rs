@@ -105,9 +105,10 @@ impl<'info> SettleAndCloseOpenOrders<'info> {
 pub fn settle_and_close_open_orders(ctx: Context<SettleAndCloseOpenOrders>) -> Result<()> {
     let open_orders = &mut *ctx.accounts.open_orders;
 
-    // This information + clearing price should be enough to display to the user after the auction
+    // This information + the clearing price should be enough to display to the user after the auction
     ctx.accounts.order_history.set_inner(OrderHistory {
         bump: ctx.accounts.order_history.bump,
+        auction: open_orders.auction,
         side: open_orders.side,
         quote_amount_returned: open_orders.quote_token_free,
         base_amount_returned: open_orders.base_token_free,
