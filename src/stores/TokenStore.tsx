@@ -27,7 +27,7 @@ export const fetchMintAndTokenAccount = async (mint?: PublicKey) => {
 
   const tokenAccountPk = await getAssociatedTokenAddress(mint, walletPk);
 
-  const [mintInfo, accountInfo] = await Promise.all([
+  const [mintInfo, accountInfo] = await Promise.allSettled([
     getMint(connection, mint),
     getAccount(connection, tokenAccountPk),
   ]);
@@ -36,8 +36,9 @@ export const fetchMintAndTokenAccount = async (mint?: PublicKey) => {
   console.log("fetchMintAndTokenAccount", { mintKey, mintInfo, accountInfo });
 
   set((s: TokenStore) => {
-    s.mints[mintKey] = mintInfo;
-    s.tokenAccounts[mintKey] = accountInfo;
+    if (mintInfo.status === "fulfilled") s.mints[mintKey] = mintInfo.value;
+    if (accountInfo.status === "fulfilled")
+      s.tokenAccounts[mintKey] = accountInfo.value;
   });
 };
 

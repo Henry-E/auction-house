@@ -31,24 +31,6 @@ const AuctionItem = ({
     .map((a) => a.publicKey)
     .findIndex((a) => auction.naclPubkey.every((b, i) => b === a[i]));
 
-  let adminAction = <></>;
-  if (localAuctionKeyIndex > -1) {
-    const secretKey = Buffer.alloc(32);
-    for (let i = 0; i < 32; ++i) {
-      secretKey[i] = localAuctionKeys[localAuctionKeyIndex].secretKey[i];
-    }
-    const b64secret = secretKey.toString("hex");
-
-    console.log("admin", secretKey, b64secret);
-
-    adminAction = (
-      <>
-        <span> </span>
-        <a href={`/admin/${pk.toBase58()}/${b64secret}`}>admin</a>
-      </>
-    );
-  }
-
   return (
     <>
       <tr key={pk.toString()}>
@@ -70,7 +52,12 @@ const AuctionItem = ({
         <td>{auction.remainingAskFills.toNumber()}</td>
         <td>
           <a href={`/auction/${pk.toBase58()}`}>user</a>
-          {adminAction}
+          {localAuctionKeyIndex > -1 && (
+            <>
+              <span> </span>
+              <a href={`/admin/${pk.toBase58()}`}>admin</a>
+            </>
+          )}
         </td>
       </tr>
     </>
@@ -100,8 +87,8 @@ const AuctionsList = () => {
       areBidsEncrypted: true,
       minBaseOrderSize: 1000,
       tickSize: 0.1,
-      orderPhaseLength: 8,
-      decryptionPhaseLength: 2,
+      orderPhaseLength: 86400, // 24h
+      decryptionPhaseLength: 3600, // 1h
       eventQueueBytes: 1000000,
       bidsBytes: 64000,
       asksBytes: 64000,
@@ -282,35 +269,17 @@ const AuctionsList = () => {
             <form onSubmit={handleSubmit(createAuction)}>
               <div>
                 <label className="space-x-2">
-                  <span>Create Base Mint</span>
-                  <input type="checkbox" {...register("createBaseMint")} />
+                  <span>Base Mint:</span>
+                  <input className="border" {...register("baseMint")} />
                 </label>
               </div>
-
-              {!watch("createBaseMint") && (
-                <div>
-                  <label className="space-x-2">
-                    <span>Address:</span>
-                    <input className="border" {...register("baseMint")} />
-                  </label>
-                </div>
-              )}
 
               <div>
                 <label className="space-x-2">
-                  <span>Create Quote Mint</span>
-                  <input type="checkbox" {...register("createQuoteMint")} />
+                  <span>Quote Mint:</span>
+                  <input className="border" {...register("quoteMint")} />
                 </label>
               </div>
-
-              {!watch("createQuoteMint") && (
-                <div>
-                  <label className="space-x-2">
-                    <span>Address:</span>
-                    <input className="border" {...register("quoteMint")} />
-                  </label>
-                </div>
-              )}
 
               <div>
                 <label className="space-x-2">
