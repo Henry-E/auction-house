@@ -30,7 +30,7 @@ pub struct InitOpenOrders<'info> {
             let mut this_space: usize = 172;
             if (auction.are_asks_encrypted && side == Side::Ask) || (auction.are_bids_encrypted && side == Side::Bid) {
                 msg!("max orders {}", max_orders);
-                this_space = this_space.checked_add(80_usize.checked_mul(max_orders as usize).unwrap()).unwrap();
+                this_space = this_space.checked_add(100_usize.checked_mul(max_orders as usize).unwrap()).unwrap();
             } else {
                 this_space = this_space.checked_add(16_usize.checked_mul(max_orders as usize).unwrap()).unwrap();
             }

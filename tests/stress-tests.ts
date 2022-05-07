@@ -41,7 +41,7 @@ describe("stress-tests", () => {
     let minPrice = 0.7;
     let maxPrice = 1.5;
 
-    it("generates a bunch of open orders", async() => {
+    it("create auction and generate a bunch of users", async() => {
         auction = await initAuctionObj(program, provider, wallet, auctionId, areAsksEncrypted, areBidsEncrypted, minBaseOrderSize, tickSize, orderPhaseLength, decryptionPhaseLength);
         let tx = new anchor.web3.Transaction;
         let eventQueueParams = await getCreateAccountParams(program, provider, wallet, auction.eventQueue, eventQueueBytes);

@@ -168,7 +168,6 @@ describe("auction-house", () => {
   });
 
   it("decrypts order", async() => {
-    // TODO should we rename arg from secretKey to sharedKey?
     let thisBidUser = users[1];
     const sharedKey = Array.from(nacl.box.before(
       Uint8Array.from(thisBidUser.naclPubkey),

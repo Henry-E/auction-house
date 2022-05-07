@@ -4,17 +4,18 @@ import { PublicKey, Keypair, Connection, LAMPORTS_PER_SOL } from "@solana/web3.j
 import { createAssociatedTokenAccount, createMint, createMintToCheckedInstruction, getAccount, getMint, mintTo, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import nacl from "tweetnacl";
 import { AuctionHouse } from "../../target/types/auction_house";
+import * as genAccs from "../../generated/accounts";
 
 export interface Auction {
     // Accounts
     auctioneer: PublicKey,
     auction: PublicKey,
     eventQueue: PublicKey,
-    eventQueueKeypair: Keypair,
+    eventQueueKeypair?: Keypair,
     bids: PublicKey,
-    bidsKeypair: Keypair,
+    bidsKeypair?: Keypair,
     asks: PublicKey,
-    asksKeypair: Keypair,
+    asksKeypair?: Keypair,
     quoteMint: PublicKey,
     baseMint: PublicKey,
     quoteVault: PublicKey,
@@ -103,3 +104,20 @@ export async function initAuctionObj(program: anchor.Program<AuctionHouse>, prov
       naclPubkey,
     }
   }
+
+export async function fetchAuctionObj(program: anchor.Program<AuctionHouse>, provider: anchor.Provider, authority: PublicKey, auctionId: Array<number>, naclKeypair?: nacl.BoxKeyPair): Promise<Auction> {
+  let [auction] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from("auction"), Buffer.from(auctionId), authority.toBuffer()],
+    program.programId
+  )
+  let fetchedAuction = await genAccs.Auction.fetch(provider.connection, auction);
+  return {
+    ...fetchedAuction,
+    auctioneer: authority,
+    auction,
+    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    systemProgram: anchor.web3.SystemProgram.programId,
+    naclKeypair,
+  }
+}
