@@ -7,6 +7,8 @@ import Modal from "../../components/Modal";
 import useLocalStorageState from "../../hooks/useLocalStorageState";
 import useWallet from "../../hooks/useWallet";
 import * as nacl from "tweetnacl";
+import Slider from "rc-slider";
+import "rc-slider/assets/index.css";
 
 import useAuctionStore, {
   fetchAuction,
@@ -103,6 +105,8 @@ const AuctionView = () => {
     register,
     handleSubmit,
     watch,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -479,12 +483,15 @@ const AuctionView = () => {
               {selected?.auction.areBidsEncrypted && (
                 <div>
                   <label className="space-x-2">
-                    <span>Deposit:</span>
-                    <input
-                      type="number"
-                      className="border"
-                      step="any"
-                      {...register("deposit", { valueAsNumber: true })}
+                    <p>
+                      Deposit more to hide your actual bid: {watch("deposit")}
+                    </p>
+
+                    <Slider
+                      min={getValues("amount") * getValues("price")}
+                      max={Number(quoteAmount!) / 10 ** quoteDecimals!}
+                      defaultValue={getValues("amount") * getValues("price")}
+                      onChange={(d) => setValue("deposit", d as number)}
                     />
                   </label>
                 </div>
