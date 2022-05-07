@@ -3,7 +3,7 @@ use anchor_spl::token;
 
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::get_side_from_order_id;
-use agnostic_orderbook::utils::fp32_mul;
+use bonfida_utils::fp_math::fp32_mul;
 
 use crate::consts::*;
 use crate::error::CustomErrors;
@@ -24,7 +24,7 @@ pub fn cancel_order(ctx: Context<NewOrder>, order_id: u128) -> Result<()> {
         .ok_or_else(|| error!(CustomErrors::OrderIdNotFound))?;
     let leaf_node = node.as_leaf().unwrap();
     let total_base_qty = leaf_node.base_quantity;
-    let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price());
+    let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price()).ok_or_else(| | error!(CustomErrors::NumericalOverflow))?;
     order_book.commit_changes();
 
     let open_orders = &mut *ctx.accounts.open_orders;

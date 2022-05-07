@@ -56,7 +56,7 @@ impl OpenOrders {
             post_only: true,
             post_allowed: true,
             // self trade behaviour is ignored, this is a vestigial argument
-            self_trade_behavior: SelfTradeBehavior::DecrementTake,
+            self_trade_behavior: SelfTradeBehavior::AbortTransaction,
             match_limit: 1,
         }
     }

@@ -6,7 +6,7 @@ use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::{
     Event, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
 };
-use agnostic_orderbook::utils::{fp32_div, fp32_mul};
+use bonfida_utils::fp_math::{fp32_div, fp32_mul};
 
 use crate::access_controls::*;
 use crate::consts::*;
@@ -115,7 +115,7 @@ pub fn match_orders(ctx: Context<MatchOrders>, limit: u16) -> Result<()> {
                 let mut fill_size: u64 = 0;
                 if auction.remaining_ask_fills > 0 {
                     fill_size = cmp::min(bbo_node.base_quantity, auction.remaining_ask_fills);
-                    let quote_size = fp32_mul(fill_size, auction.clearing_price);
+                    let quote_size = fp32_mul(fill_size, auction.clearing_price).ok_or_else(| | error!(CustomErrors::NumericalOverflow))?;
                     let order_fill = Event::Fill {
                         taker_side: side.opposite(),
                         maker_callback_info: order_book
@@ -156,7 +156,7 @@ pub fn match_orders(ctx: Context<MatchOrders>, limit: u16) -> Result<()> {
                 let mut fill_size: u64 = 0;
                 if auction.remaining_bid_fills > 0 {
                     fill_size = cmp::min(bbo_node.base_quantity, auction.remaining_bid_fills);
-                    let quote_size = fp32_mul(fill_size, auction.clearing_price);
+                    let quote_size = fp32_mul(fill_size, auction.clearing_price).ok_or_else(| | error!(CustomErrors::NumericalOverflow))?;
                     let order_fill = Event::Fill {
                         taker_side: side.opposite(),
                         maker_callback_info: order_book
@@ -177,12 +177,12 @@ pub fn match_orders(ctx: Context<MatchOrders>, limit: u16) -> Result<()> {
                 let mut out_size = bbo_node.base_quantity - fill_size;
                 // Bids get a partial refund if they're filled at a lower price
                 if fill_size > 0 && bbo_node.price() > auction.clearing_price {
-                    let quote_owed = fp32_mul(fill_size, bbo_node.price())
-                        .checked_sub(fp32_mul(fill_size, auction.clearing_price))
+                    let quote_owed = fp32_mul(fill_size, bbo_node.price()).ok_or_else(| | error!(CustomErrors::NumericalOverflow))?
+                        .checked_sub(fp32_mul(fill_size, auction.clearing_price).ok_or_else(| | error!(CustomErrors::NumericalOverflow))?)
                         .unwrap();
                     // Event::out only takes base size as an argument so
                     // need to convert quote owed to base using bbo's price
-                    let base_owed = fp32_div(quote_owed, bbo_node.price());
+                    let base_owed = fp32_div(quote_owed, bbo_node.price()).ok_or_else(| | error!(CustomErrors::NumericalOverflow))?;
                     out_size = out_size.checked_add(base_owed).unwrap();
                 }
                 let order_out = Event::Out {

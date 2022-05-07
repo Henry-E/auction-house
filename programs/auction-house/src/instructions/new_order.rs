@@ -10,7 +10,6 @@ use crate::types::*;
 
 use agnostic_orderbook::orderbook::OrderBookState;
 use agnostic_orderbook::state::{EventQueue, EventQueueHeader, EVENT_QUEUE_HEADER_LEN};
-use agnostic_orderbook::utils::fp32_mul;
 
 #[derive(Accounts)]
 pub struct NewOrder<'info> {
@@ -179,6 +178,7 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
         ctx.accounts
             .open_orders
             .new_order_params(limit_price, max_base_qty);
+    msg!("params: {:?}", params);
     let order_summary = order_book
         .new_order(
             params,

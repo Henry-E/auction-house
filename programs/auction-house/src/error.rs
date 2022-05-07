@@ -88,4 +88,6 @@ pub enum CustomErrors {
     OrderBookNotEmpty,
     #[msg("Event queue should be empty")]
     EventQueueNotEmpty,
+    #[msg("Some issue with the FP32 multiplication / division messed the maths up")]
+    NumericalOverflow,
 }

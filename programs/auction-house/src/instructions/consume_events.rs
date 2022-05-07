@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use agnostic_orderbook::state::{
     Event, EventQueue, EventQueueHeader, Side as AobSide, EVENT_QUEUE_HEADER_LEN,
 };
-use agnostic_orderbook::utils::fp32_mul;
+use bonfida_utils::fp_math::fp32_mul;
 
 use std::convert::TryInto;
 
@@ -139,7 +139,7 @@ pub fn consume_events(ctx: Context<ConsumeEvents>, limit: u16, allow_no_op: bool
                     }
                     AobSide::Bid => {
                         let price = (order_id >> 64) as u64;
-                        let quote_size = fp32_mul(base_size, price);
+                        let quote_size = fp32_mul(base_size, price).ok_or_else(| | error!(CustomErrors::NumericalOverflow))?;
                         user_open_orders.quote_token_free = user_open_orders
                             .quote_token_free
                             .checked_add(quote_size)
