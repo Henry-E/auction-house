@@ -107,7 +107,6 @@ pub fn decrypt_order(ctx: Context<DecryptOrder>, shared_key: Vec<u8>) -> Result<
             .map_err(|_| error!(CustomErrors::InvalidSharedKey))?;
         let limit_price = u64::from_le_bytes(price_and_quantity[0..8].try_into().unwrap());
         let max_base_qty = u64::from_le_bytes(price_and_quantity[8..16].try_into().unwrap());
-        let max_quote_qty = fp32_mul(max_base_qty, limit_price);
         // If any order triggers an error, then none of the orders will be processed.
         validate_price_and_qty(
             &ctx.accounts.auction.clone().into_inner(),
@@ -115,7 +114,7 @@ pub fn decrypt_order(ctx: Context<DecryptOrder>, shared_key: Vec<u8>) -> Result<
             max_base_qty,
         )?;
         // Place a new order
-        let params = open_orders.new_order_params(limit_price, max_base_qty, max_quote_qty);
+        let params = open_orders.new_order_params(limit_price, max_base_qty);
         let order_summary = order_book
             .new_order(
                 params,

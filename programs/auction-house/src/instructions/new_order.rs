@@ -175,11 +175,10 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
         CALLBACK_INFO_LEN,
     )?;
 
-    let max_quote_qty = fp32_mul(max_base_qty, limit_price);
     let params =
         ctx.accounts
             .open_orders
-            .new_order_params(limit_price, max_base_qty, max_quote_qty);
+            .new_order_params(limit_price, max_base_qty);
     let order_summary = order_book
         .new_order(
             params,

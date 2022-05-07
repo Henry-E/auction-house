@@ -45,11 +45,11 @@ impl OpenOrders {
         &self,
         limit_price: u64,
         max_base_qty: u64,
-        max_quote_qty: u64,
+        // max_quote_qty: u64,
     ) -> Params {
         Params {
             max_base_qty,
-            max_quote_qty,
+            max_quote_qty: u64::MAX,
             limit_price,
             side: AobSide::from(self.side),
             callback_info: self.this_open_orders.to_bytes().to_vec(),
