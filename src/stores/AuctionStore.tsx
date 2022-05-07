@@ -123,7 +123,7 @@ setProvider(
 const useAuctionStore = create<AuctionStore>((set, _get) => ({
   program: new Program<any>(
     idl,
-    "uZ437HQbaWGGCb5pEU6zJTrpfMTCFDVk4uLCBkWRjNr"
+    "HNs9zDcM1TCwbpbfrYXf3KPic9raPj4rqau7XNYsmTBw"
   ) as Program<AuctionHouse>,
   auctions: [],
   loadingAuctions: false,

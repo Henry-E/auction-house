@@ -7,8 +7,6 @@ import Modal from "../../components/Modal";
 import useLocalStorageState from "../../hooks/useLocalStorageState";
 import useWallet from "../../hooks/useWallet";
 import * as nacl from "tweetnacl";
-import Slider from "rc-slider";
-import "rc-slider/assets/index.css";
 
 import useAuctionStore, {
   fetchAuction,
@@ -30,14 +28,9 @@ import {
 } from "../../../generated/instructions";
 import { toFp32, toFpLimitPrice } from "../../../tests/sdk/utils";
 import { BN } from "@project-serum/anchor";
-import {
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddress,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import { token } from "@project-serum/anchor/dist/cjs/utils";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-const AuctionView = () => {
+const AdminView = () => {
   const router = useRouter();
   const { pk } = router.query;
   const { programId } = useAuctionStore((s) => s.program);
@@ -48,7 +41,7 @@ const AuctionView = () => {
   const wallet = useWalletStore((s) => s.current);
   const connected = useWalletStore((s) => s.connected);
 
-  const [openBidModal, setOpenBidModal] = useState(false);
+  const [openAskModal, setOpenAskModal] = useState(false);
 
   const [localOrderKey] = useLocalStorageState(
     "localOrderKey",
@@ -105,8 +98,6 @@ const AuctionView = () => {
     register,
     handleSubmit,
     watch,
-    getValues,
-    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -128,14 +119,15 @@ const AuctionView = () => {
       fetchMintAndTokenAccount(selected?.auction.baseMint);
       fetchMintAndTokenAccount(selected?.auction.quoteMint);
     }
-  }, [pk, wallet, connected, openBidModal]);
+  }, [pk, wallet, connected, openAskModal]);
 
-  const createBid = async (data: any) => {
+  const createAsk = async (data: any) => {
     (async () => {
       if (
-        !wallet?.publicKey ||
+        !wallet ||
         !pk ||
         !selected ||
+        !baseToken ||
         !quoteToken ||
         !baseDecimals ||
         !quoteDecimals
@@ -144,24 +136,6 @@ const AuctionView = () => {
 
       const auction = selected.auction;
       const { quoteMint, baseMint } = auction;
-
-      const tx = new Transaction();
-
-      let baseTokenAddr: PublicKey;
-      if (!baseToken) {
-        baseTokenAddr = await getAssociatedTokenAddress(
-          baseMint,
-          wallet.publicKey
-        );
-        tx.add(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey,
-            baseTokenAddr,
-            wallet.publicKey,
-            baseMint
-          )
-        );
-      }
 
       // TODO: move to auction store
       let [openOrdersPk] = await PublicKey.findProgramAddress(
@@ -183,27 +157,29 @@ const AuctionView = () => {
         programId
       );
 
+      const tx = new Transaction();
+
       const openOrders = await OpenOrders.fetch(connection, openOrdersPk);
       if (!openOrders) {
         tx.add(
           initOpenOrders(
-            { side: new Side.Bid(), maxOrders: 2 },
+            { side: new Side.Ask(), maxOrders: 2 },
             {
-              user: wallet.publicKey,
+              user: wallet.publicKey!,
               auction: new PublicKey(pk),
               openOrders: openOrdersPk,
               orderHistory: orderHistoryPk,
               quoteMint,
               baseMint,
               userQuote: quoteToken,
-              userBase: baseToken || baseTokenAddr!,
+              userBase: baseToken,
               systemProgram: SystemProgram.programId,
             }
           )
         );
       }
-      console.log("createBid", watch(), auction);
-      if (auction.areBidsEncrypted) {
+      console.log("createAsk", watch(), auction);
+      if (auction.areAsksEncrypted) {
         // convert into native values
         let price = toFp32(watch("price")).shln(32).div(auction.tickSize);
         let quantity = new BN(watch("amount") * Math.pow(10, baseDecimals));
@@ -237,7 +213,7 @@ const AuctionView = () => {
           naclPubkey[i] = localOrderKey.publicKey[i];
         }
 
-        console.log("createBid", "encrypted", naclPubkey, cipherText);
+        console.log("createAsk", "encrypted", naclPubkey, cipherText);
         tx.add(
           newEncryptedOrder(
             {
@@ -249,11 +225,11 @@ const AuctionView = () => {
             {
               ...auction,
 
-              user: wallet.publicKey,
+              user: wallet.publicKey!,
               auction: new PublicKey(pk),
               openOrders: openOrdersPk,
               userQuote: quoteToken,
-              userBase: baseToken || baseTokenAddr!,
+              userBase: baseToken,
               tokenProgram: TOKEN_PROGRAM_ID,
             }
           )
@@ -275,7 +251,7 @@ const AuctionView = () => {
               auction: new PublicKey(pk),
               openOrders: openOrdersPk,
               userQuote: quoteToken,
-              userBase: baseToken || baseTokenAddr!,
+              userBase: baseToken,
               tokenProgram: TOKEN_PROGRAM_ID,
             }
           )
@@ -284,54 +260,13 @@ const AuctionView = () => {
 
       // send & confirm tx
       const sig = await wallet.sendTransaction(tx, connection);
-      console.log("create bid", sig);
+      console.log("create ask", sig);
 
       await connection.confirmTransaction(sig);
-      console.log("create bid confirmed");
+      console.log("create ask confirmed");
 
       await fetchOpenOrders(new PublicKey(pk), wallet.publicKey!);
     })();
-  };
-
-  const cancelBid = async (i: number) => {
-    if (!wallet?.publicKey || !pk || !selected || !baseToken || !quoteToken)
-      return;
-    const auction = selected.auction;
-
-    let [openOrdersPk] = await PublicKey.findProgramAddress(
-      [
-        wallet.publicKey.toBuffer(),
-        Buffer.from("open_orders"),
-        Buffer.from(auction.auctionId),
-        auction.authority.toBuffer(),
-      ],
-      programId
-    );
-
-    const tx = new Transaction();
-    tx.add(
-      cancelEncryptedOrder(
-        { orderIdx: i },
-        {
-          ...selected!.auction,
-          user: wallet.publicKey!,
-          auction: new PublicKey(pk),
-          openOrders: openOrdersPk,
-          userQuote: quoteToken,
-          userBase: baseToken,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        }
-      )
-    );
-
-    // send & confirm tx
-    const sig = await wallet.sendTransaction(tx, connection);
-    console.log("cancel bid", sig);
-
-    await connection.confirmTransaction(sig);
-    console.log("cancel bid confirmed");
-
-    await fetchOpenOrders(new PublicKey(pk), wallet.publicKey!);
   };
 
   return (
@@ -340,7 +275,7 @@ const AuctionView = () => {
         <div className="border p-4">
           <h1>Actions</h1>
           <div className="border p-1 inline-block">
-            <button onClick={() => setOpenBidModal(true)}>Create Bid</button>
+            <button onClick={() => setOpenAskModal(true)}>Create Ask</button>
           </div>
         </div>
         <div className="border p-4">
@@ -418,18 +353,10 @@ const AuctionView = () => {
                       10 ** baseDecimals!;
                     const deposit = o.tokenQty.toNumber() / 10 ** baseDecimals!;
                     return (
-                      <div className="text-sm flex flex-row" key={i}>
-                        <div>
-                          <p>Price: {price}</p>
-                          <p>Quantity: {quantity}</p>
-                          <p>Deposit: {deposit}</p>
-                        </div>
-
-                        <div className="p-4">
-                          <div className="border p-1 inline-block">
-                            <button onClick={() => cancelBid(i)}>cancel</button>{" "}
-                          </div>
-                        </div>
+                      <div className="text-sm" key={i}>
+                        <p>Price: {price}</p>
+                        <p>Quantity: {quantity}</p>
+                        <p>Deposit: {deposit}</p>
                       </div>
                     );
                   } catch (e) {
@@ -442,19 +369,17 @@ const AuctionView = () => {
         </div>
       </div>
 
-      {openBidModal && (
+      {openAskModal && (
         <Modal
           onClose={() => {
-            setOpenBidModal(false);
+            setOpenAskModal(false);
           }}
-          isOpen={openBidModal}
+          isOpen={openAskModal}
         >
           <div className="">
-            <h1>Create Bid</h1>
-            <form onSubmit={handleSubmit(createBid)}>
-              <p>
-                Quote Balance: {Number(quoteAmount!) / 10 ** quoteDecimals!}
-              </p>
+            <h1>Create Ask</h1>
+            <form onSubmit={handleSubmit(createAsk)}>
+              <p>Base Balance: {Number(baseAmount!) / 10 ** baseDecimals!}</p>
 
               <div>
                 <label className="space-x-2">
@@ -462,7 +387,6 @@ const AuctionView = () => {
                   <input
                     type="number"
                     className="border"
-                    step="any"
                     {...register("amount", { valueAsNumber: true })}
                   />
                 </label>
@@ -480,18 +404,14 @@ const AuctionView = () => {
                 </label>
               </div>
 
-              {selected?.auction.areBidsEncrypted && (
+              {selected?.auction.areAsksEncrypted && (
                 <div>
                   <label className="space-x-2">
-                    <p>
-                      Deposit more to hide your actual bid: {watch("deposit")}
-                    </p>
-
-                    <Slider
-                      min={getValues("amount") * getValues("price")}
-                      max={Number(quoteAmount!) / 10 ** quoteDecimals!}
-                      defaultValue={getValues("amount") * getValues("price")}
-                      onChange={(d) => setValue("deposit", d as number)}
+                    <span>Deposit:</span>
+                    <input
+                      type="number"
+                      className="border"
+                      {...(register("deposit"), { valueAsNumber: true })}
                     />
                   </label>
                 </div>
@@ -505,4 +425,4 @@ const AuctionView = () => {
   );
 };
 
-export default AuctionView;
+export default AdminView;
