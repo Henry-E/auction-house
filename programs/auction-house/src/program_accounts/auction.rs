@@ -41,6 +41,11 @@ pub struct Auction {
     pub final_bid_price: u64,
     pub final_ask_price: u64,
     pub clearing_price: u64,
+
+    pub ask_search_stack_depth: u8,
+    pub bid_search_stack_depth: u8,
+    pub ask_search_stack_values: [u32; 32],
+    pub bid_search_stack_values: [u32; 32],
 }
 
 #[macro_export]
