@@ -82,7 +82,7 @@ export async function initUser(program: anchor.Program<AuctionHouse>, provider: 
       maxOrders //: maxOrders.toNumber(), // Some weirdness going on with maxOrder types in the generated client
     }
   }
-  export async function fetchUsers(program: anchor.Program<AuctionHouse>, provider: anchor.Provider, auction: Auction, opts: {onlyEncrypted?: boolean, onlyEmpty?: boolean}): Promise<Array<User>>  {
+  export async function fetchUsers(program: anchor.Program<AuctionHouse>, provider: anchor.Provider, auction: Auction, opts?: {onlyEncrypted?: boolean, onlyEmpty?: boolean}): Promise<Array<User>>  {
     const programAccounts = await provider.connection.getParsedProgramAccounts(
       program.programId,
         {

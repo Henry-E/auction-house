@@ -14,6 +14,7 @@ import nacl from "tweetnacl";
 import { types } from "util";
 import { AccountDiscriminatorAlreadySet } from "../generated/errors/anchor";
 import { EventFill, EventOut, EventQueue } from "@bonfida/aaob";
+import { consumeEventsCrank, decryptOrdersCrank, settleAndCloseOpenOrdersCrank } from "./sdk/cranks";
 // import { fetchAuctionObj } from "./sdk/auction";
 
 describe("Testing out the cranks for processing the auction phases", () => {
@@ -29,6 +30,7 @@ describe("Testing out the cranks for processing the auction phases", () => {
     const minBaseOrderSize = new BN(100_000_000); // Min order size of $20 assuming $0.20 token price and 6 decimal places
     const tickSizeNum = 0.001; // $0.001 or 0.1c tick size
     const tickSize = toFp32(tickSizeNum);
+    const dustThreshold = 10; // The smallest fraction of tokens allowed to be left in the locked token balance
     const eventQueueBytes = 1000000;
     
     const minSalePrice = 0.2; // $0.20 / 20c
@@ -39,7 +41,8 @@ describe("Testing out the cranks for processing the auction phases", () => {
     // Simulated user values
     const minPrice = 0.18; // Setting min price below the ask price just to add more diversity to the test
     const maxPrice = 0.40;
-    const defaultUserUsdc = new BN(1_000_000_000_000); // $1 million, orders will be between $200 and $1 million
+    // const defaultUserUsdc = new BN(1_000_000_000_000); // $1 million, orders will be between $200 and $1 million
+    const defaultUserUsdc = new BN(100_000_000_000); // $100,000, orders will be between $200 and $100,000
     
     let users: Array<User> = [];
     // const numUsers = 1250; // Needs to be 1,250 to make sure enough orders are sent through that some will be removed from the order book
@@ -191,41 +194,9 @@ describe("Testing out the cranks for processing the auction phases", () => {
           await sleep(remainingTimeToDecryption + 1);
         }
 
-        // TODO put this into a function
-        let fetchedUsers = await fetchUsers(program, provider, auctionObj, {onlyEncrypted: true});
+        await decryptOrdersCrank(program, provider, auctionObj, groupedNum);
 
-        let numDecryptedUsers = 0;
-        let tempDecryptInstrs: Array<Promise<String>> = [];
-        let startTime = Date.now();
-        for (let user of fetchedUsers) {
-            if (Date.now() / 1000  > auctionObj.endDecryptionPhase.toNumber()) {
-                console.log("Decryption phase has ended");
-                await Promise.all(tempDecryptInstrs);
-                console.log(tempDecryptInstrs.length, "orders in", (Date.now() - startTime)/1000);
-                console.log(numDecryptedUsers, "orders in total");
-                break
-            }
-            let sharedKey = Array.from(nacl.box.before(
-                Uint8Array.from(user.naclPubkey),
-                auctionObj.naclKeypair.secretKey
-            ))
-            let tx = new anchor.web3.Transaction;
-            tx.add(genInstr.decryptOrder(
-                {sharedKey},
-                {...user, ...auctionObj}
-            ));
-            tempDecryptInstrs.push(provider.send(tx));
-            numDecryptedUsers += 1
-
-            if (numDecryptedUsers % groupedNum == 0){
-                await Promise.all(tempDecryptInstrs);
-                console.log(tempDecryptInstrs.length, "open order accounts decrypted in", (Date.now() - startTime)/1000);
-                console.log(numDecryptedUsers, "open order accounts in total");
-                tempDecryptInstrs = [];
-                startTime = Date.now();
-            }
-        }
-
+        let fetchedUsers = await fetchUsers(program, provider, auctionObj, {});
         for (let user of fetchedUsers) {
             let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, user.openOrders);
             // TODO it's possible that there are certain open orders accounts which cannot be decrypted
@@ -258,68 +229,49 @@ describe("Testing out the cranks for processing the auction phases", () => {
         assert.isTrue(thisAuction.hasFoundClearingPrice, "checking the clearing price has been found");
 
         await matchOrdersCrank(provider, wallet, auctionObj, 20);
+
         thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
         assert.isTrue(thisAuction.remainingAskFills.toNumber() == 0, "check the entire matched quantity has been processed");
         assert.isTrue(thisAuction.remainingBidFills.toNumber() == 0, "check the entire matched quantity has been processed");
-        // TODO could also add a check that the order book is empty but we haven't spent any time messing around with AOB ts stuff yet.
+        // TODO could also add a check that the order book is empty but we haven't spent any time messing around with typescript AOB slab stuff yet.
     });
 
     it("Consume events", async() => {
         let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId);
 
-        // This is the start of the function
-        let numEventsToConsume = 10; // Bounded more by the maximum number possible pubkeys in the transaction bytes
+        await consumeEventsCrank(provider, auctionObj);
+
         let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
-
-        while (true) {
-            let thisEventQueue = await EventQueue.load(provider.connection, thisAuction.eventQueue, 32);
-            if (thisEventQueue.header.count.toNumber() == 0) {
-                console.log("no events on the event queue to consume");
-                break
-                // return true
-            }
-            numEventsToConsume = Math.min(numEventsToConsume, thisEventQueue.header.count.toNumber());
-
-            let pubkeyStrs = new Set<String>(); // Set doesn't work with PublicKey type
-            // idx is the number of events that will be processed by the consume events called
-            let idx = 0;
-            while (idx < numEventsToConsume) {
-                try {
-                    let event = thisEventQueue.parseEvent(idx);
-                    let thisPubkey: PublicKey;
-                    if (event instanceof EventOut) {
-                        thisPubkey = new PublicKey(event.callBackInfo);
-                    } else if (event instanceof EventFill) {
-                        thisPubkey = new PublicKey(event.makerCallbackInfo);
-                    }
-                    pubkeyStrs.add(thisPubkey.toString());
-                    idx++
-                } catch (e) {
-                    console.log(e);
-                    // if (e.toString().include("Invalid data provided")) {
-                    //     console.log("no more events left on the event queue once these", idx, "events are consumed");
-                    // }
-                    break
-                    // return false
-                }
-            }
-            console.log(JSON.stringify(Array.from(pubkeyStrs), null, 2));
-            let tx = new anchor.web3.Transaction;
-            let thisInstr = genInstr.consumeEvents(
-                {limit: new BN(10), allowNoOp: false},
-                {...auctionObj}
-            );
-            let remainingAccounts: anchor.web3.AccountMeta[] = [];
-            for (let thisPubkeyStr of pubkeyStrs) {
-                remainingAccounts.push({
-                    pubkey: new PublicKey(thisPubkeyStr), isSigner: false, isWritable: true
-                });
-            }
-            thisInstr.keys = thisInstr.keys.concat(remainingAccounts);
-            tx.add(thisInstr);
-            await provider.send(tx, [], {skipPreflight: true});
-        }
+        let thisEventQueue = await EventQueue.load(provider.connection, thisAuction.eventQueue, 32);
+        assert.isTrue(thisEventQueue.header.count.toNumber() == 0, "Check that all the events have been consumed")
     });
 
+    it("Settle and close the open orders accounts", async() => {
+        let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId); 
+
+        // Need to call this before the crank that closes the accounts
+        let fetchedUsers = await fetchUsers(program, provider, auctionObj, {onlyEmpty: true});
+
+        await settleAndCloseOpenOrdersCrank(program, provider, auctionObj, groupedNum);
+
+        // Assertion tests
+        for (let user of fetchedUsers) {
+            assert.isNull(await genAccs.OpenOrders.fetch(provider.connection, user.openOrders), "check the account is shut down");
+            // Check the user has received the right amount of tokens
+            let auction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
+            let thisOrderHistory = await genAccs.OrderHistory.fetch(provider.connection, user.orderHistory);
+            let thisUserBaseQty =  Number((await provider.connection.getTokenAccountBalance(user.userBase)).value.amount);
+            let thisUserQuoteQty = Number((await provider.connection.getTokenAccountBalance(user.userQuote)).value.amount);
+            
+            let netQuoteQty = Math.abs(defaultUserUsdc - (thisUserQuoteQty + Math.floor(thisUserBaseQty * (auction.clearingPrice.toNumber() / 2 ** 32))));
+            let netBaseQty = Math.abs(numTokensForSale - (thisUserBaseQty + Math.floor(thisUserQuoteQty / (auction.clearingPrice.toNumber() / 2 ** 32))));
+            if (thisOrderHistory.side.kind == "Bid" && netQuoteQty > dustThreshold) {
+                console.log("Bid User got the wrong amount of tokens back:", user.user.toString(), netQuoteQty);
+            } else if (thisOrderHistory.side.kind == "Ask" && netBaseQty > dustThreshold) {
+                console.log("Ask User got the wrong amount of tokens back:", user.user.toString(), netBaseQty);
+            }
+        }
+
+    });
 
 });
