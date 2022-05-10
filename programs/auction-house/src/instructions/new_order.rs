@@ -195,8 +195,8 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
 
     match open_orders.side {
         Side::Ask => {
+            msg!("max base qty: {}, limit price in FP32: {}", max_base_qty, limit_price);
             msg!("order summary {:?}", order_summary);
-            msg!("max base qty {}", max_base_qty);
             open_orders.base_token_locked = open_orders
                 .base_token_locked
                 .checked_add(order_summary.total_base_qty)
@@ -207,6 +207,8 @@ pub fn new_order(ctx: Context<NewOrder>, limit_price: u64, max_base_qty: u64) ->
             )?;
         }
         Side::Bid => {
+            msg!("max base qty: {}, limit price in FP32: {}", max_base_qty, limit_price);
+            msg!("order summary {:?}", order_summary);
             open_orders.quote_token_locked = open_orders
                 .quote_token_locked
                 .checked_add(order_summary.total_quote_qty)

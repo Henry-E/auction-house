@@ -6,3 +6,6 @@ pub const ORDER_HISTORY: &str = "order_history";
 
 pub const CALLBACK_INFO_LEN: usize = 32;
 pub const CALLBACK_ID_LEN: usize = 32;
+
+pub const BASE_DUST_THRESHOLD: u64 = 10;
+pub const QUOTE_DUST_THRESHOLD: u64 = 10;

@@ -68,13 +68,14 @@ pub struct SettleAndCloseOpenOrders<'info> {
 }
 
 impl SettleAndCloseOpenOrders<'_> {
-    // Allowed to be called at any time essentially
+    // There are no specific time restrictions on when settle and close can be called
     pub fn access_control(&self) -> Result<()> {
         if self.open_orders.num_orders > 0 {
             return Err(error!(CustomErrors::OpenOrdersHasOpenOrders));
         }
-        // Technically a redundant check but totally worth making sure
-        if self.open_orders.quote_token_locked != 0 || self.open_orders.base_token_locked != 0 {
+        // Turned out this is not a redundant check, AOB has rounding errors which leave small amounts in the account.
+        // So now we have dust thresholds, in case there are small amounts left over in the account.
+        if self.open_orders.quote_token_locked > QUOTE_DUST_THRESHOLD || self.open_orders.base_token_locked > BASE_DUST_THRESHOLD {
             return Err(error!(CustomErrors::OpenOrdersHasLockedTokens));
         }
         Ok(())

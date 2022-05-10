@@ -125,6 +125,8 @@ pub fn decrypt_order(ctx: Context<DecryptOrder>, shared_key: Vec<u8>) -> Result<
         // If the order is for less than token_qty then move that amount to token_free balance.
         match open_orders.side {
             Side::Ask => {
+                msg!("max base qty: {}, limit price in FP32: {}", max_base_qty, limit_price);
+                msg!("order summary {:?}", order_summary);
                 if encrypted_order.token_qty < order_summary.total_base_qty {
                     return Err(error!(CustomErrors::InsufficientTokensForOrder));
                 }
@@ -144,6 +146,8 @@ pub fn decrypt_order(ctx: Context<DecryptOrder>, shared_key: Vec<u8>) -> Result<
                 }
             }
             Side::Bid => {
+                msg!("max base qty: {}, limit price in FP32: {}", max_base_qty, limit_price);
+                msg!("order summary {:?}", order_summary);
                 if encrypted_order.token_qty < order_summary.total_quote_qty {
                     return Err(error!(CustomErrors::InsufficientTokensForOrder));
                 }
