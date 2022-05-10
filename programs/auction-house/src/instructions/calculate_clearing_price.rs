@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use anchor_lang::prelude::*;
 
 use agnostic_orderbook::critbit::LeafNode;
@@ -58,10 +60,27 @@ pub fn calculate_clearing_price(ctx: Context<CalculateClearingPrice>, limit: u16
     )?;
 
     let bid_slab = order_book.get_tree(AobSide::Bid);
-    let mut bid_iter = bid_slab.clone().into_iter(false);
+    let mut bid_iter;
+    if auction.bid_search_stack_depth > 0 {
+        bid_iter = bid_slab.clone().resume_iter(
+            false,
+            &auction.bid_search_stack_values[0..auction.bid_search_stack_depth as usize].to_vec(),
+        )
+    } else {
+        bid_iter = bid_slab.clone().into_iter(false);
+    }
     let mut current_bid: LeafNode;
+
     let ask_slab = order_book.get_tree(AobSide::Ask);
-    let mut ask_iter = ask_slab.clone().into_iter(true);
+    let mut ask_iter;
+    if auction.ask_search_stack_depth > 0 {
+        ask_iter = ask_slab.clone().resume_iter(
+            true,
+            &auction.ask_search_stack_values[0..auction.ask_search_stack_depth as usize].to_vec(),
+        )
+    } else {
+        ask_iter = ask_slab.clone().into_iter(true);
+    }
     let mut current_ask: LeafNode;
 
     if auction.current_ask_key == 0 && auction.current_bid_key == 0 {
@@ -166,6 +185,24 @@ pub fn calculate_clearing_price(ctx: Context<CalculateClearingPrice>, limit: u16
             }
         }
     }
+
+    let ask_stack = ask_iter.search_stack;
+    let bid_stack = bid_iter.search_stack;
+
+    if ask_stack.len() > 32 || bid_stack.len() > 32 {
+        msg!(
+            "Slab iterator stack too deep bids={} asks={}",
+            bid_stack.len(),
+            ask_stack.len()
+        );
+        return Err(error!(CustomErrors::SlabIteratorOverflow));
+    }
+    auction.ask_search_stack_depth = ask_stack.len() as u8;
+    auction.bid_search_stack_depth = bid_stack.len() as u8;
+    let ask_padding: Vec<u32> = vec![0; 32 - ask_stack.len()];
+    let bid_padding: Vec<u32> = vec![0; 32 - bid_stack.len()];
+    auction.ask_search_stack_values = [ask_stack, ask_padding].concat().try_into().unwrap();
+    auction.bid_search_stack_values = [bid_stack, bid_padding].concat().try_into().unwrap();
 
     if auction.has_found_clearing_price {
         auction.total_quantity_matched = auction.total_quantity_filled_so_far;

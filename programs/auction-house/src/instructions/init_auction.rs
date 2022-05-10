@@ -130,6 +130,10 @@ pub fn init_auction(ctx: Context<InitAuction>, args: &InitAuctionArgs) -> Result
         final_bid_price: 0,
         final_ask_price: 0,
         clearing_price: 0,
+        ask_search_stack_depth: 0,
+        ask_search_stack_values: [0; 32],
+        bid_search_stack_depth: 0,
+        bid_search_stack_values: [0; 32],
     });
 
     // Init event queue

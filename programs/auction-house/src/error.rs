@@ -90,4 +90,6 @@ pub enum CustomErrors {
     EventQueueNotEmpty,
     #[msg("Some issue with the FP32 multiplication / division messed the maths up")]
     NumericalOverflow,
+    #[msg("Slab iterator stack overflow")]
+    SlabIteratorOverflow,
 }
