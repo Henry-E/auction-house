@@ -14,7 +14,7 @@ dependencies = [
 [[package]]
 name = "agnostic-orderbook"
 version = "0.1.0"
-source = "git+https://github.com/Henry-E/agnostic-orderbook.git#8f1c883c2a03a3de299cf91bb6cf9667ca791466"
+source = "git+https://github.com/Henry-E/agnostic-orderbook.git?rev=da6b95b#da6b95b2c3df6a9eabf47d95b5836388ce4a2e30"
 dependencies = [
  "bonfida-utils",
  "borsh",
@@ -246,6 +246,7 @@ dependencies = [
  "agnostic-orderbook",
  "anchor-lang",
  "anchor-spl",
+ "bonfida-utils",
  "bytemuck",
  "xsalsa20poly1305",
 ]

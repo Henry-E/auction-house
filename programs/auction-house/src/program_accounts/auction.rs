@@ -28,6 +28,10 @@ pub struct Auction {
     pub min_base_order_size: u64,
     pub tick_size: u64,
     // Intermediate information while matching the orderbook
+    pub ask_search_stack_depth: u8,
+    pub bid_search_stack_depth: u8,
+    pub ask_search_stack_values: [u32; 32],
+    pub bid_search_stack_values: [u32; 32],
     pub current_bid_key: u128,
     pub current_ask_key: u128,
     pub current_bid_quantity_filled: u64,
@@ -41,11 +45,6 @@ pub struct Auction {
     pub final_bid_price: u64,
     pub final_ask_price: u64,
     pub clearing_price: u64,
-
-    pub ask_search_stack_depth: u8,
-    pub bid_search_stack_depth: u8,
-    pub ask_search_stack_values: [u32; 32],
-    pub bid_search_stack_values: [u32; 32],
 }
 
 #[macro_export]

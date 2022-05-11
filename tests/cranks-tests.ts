@@ -214,7 +214,7 @@ describe("Testing out the cranks for processing the auction phases", () => {
             await sleep(remainingTimeToClearing + 1);
         }
 
-        await calcClearingPriceCrank(provider, wallet, auctionObj, 1);
+        await calcClearingPriceCrank(provider, wallet, auctionObj, 10);
 
         let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
         console.log(JSON.stringify(thisAuction, null, 2));
