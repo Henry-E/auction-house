@@ -25,15 +25,7 @@ export async function calcClearingPriceCrank(provider: anchor.Provider, wallet: 
             ));
             await provider.send(tx, [], {skipPreflight: true});
             numErrors = 0;
-            // debug
-            let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
-            // console.log(JSON.stringify(thisAuction, null, 2));
-            //
         } catch (e) {
-            // debug
-            let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
-            // console.log(JSON.stringify(thisAuction, null, 2));
-            //
             // "Calculating clearing price phase is not active"
             if (e.toString().includes("6009")) {
                return true 
@@ -125,6 +117,8 @@ export async function decryptOrdersCrank(program: anchor.Program<AuctionHouse>, 
         if (numDecryptedUsers % batchSize == 0){
             try {
                 await Promise.all(tempDecryptInstrs);
+                // Consume events directly after sending the decrypt orders
+                await consumeEventsCrank(provider, auctionObj, 10);
             } catch (e) {
                 console.log(e)
                 anyErrors = true

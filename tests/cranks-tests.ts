@@ -35,7 +35,7 @@ describe("Testing out the cranks for processing the auction phases", () => {
     // const eventQueueBytes = 1000000;
     // const eventQueueBytes = 5_000;
     const numEvents = 10_000;
-    const eventQueueBytes = (33 + 42 + 50 * 98);
+    const eventQueueBytes = (33 + 42 + numEvents * 98);
     
     const minSalePrice = 0.2; // $0.20 / 20c
     const numTokensForSale: BN = new BN(100_000_000_000_000); // 100 million tokens, assuming 6 decimal places
