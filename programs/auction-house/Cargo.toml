@@ -18,11 +18,11 @@ default = []
 [dependencies]
 anchor-lang = "0.22.1"
 anchor-spl = "0.22.1"
-bonfida-utils = "0.2.5"
+bonfida-utils = "0.2.11"
 # Right now this will use whatever the latest commit is on the master branch.
 # Later on we can force it to stick to a specific commit if needed
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories
-agnostic-orderbook = {git = "https://github.com/Henry-E/agnostic-orderbook.git", rev = "da6b95b", features = ["no-entrypoint", "lib"]}
+agnostic-orderbook = {git = "https://github.com/Henry-E/agnostic-orderbook.git", rev = "e59ce13", features = ["no-entrypoint", "lib"]}
 # agnostic-orderbook = {path = "../../../agnostic-orderbook/program", features = ["no-entrypoint", "lib"]}
 bytemuck = {version = "1.7.2", features= ["derive"]}
 xsalsa20poly1305 = { version = "0.8", default-features = false, features = ["alloc"] }
