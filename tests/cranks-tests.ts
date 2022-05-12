@@ -15,6 +15,7 @@ import { types } from "util";
 import { AccountDiscriminatorAlreadySet } from "../generated/errors/anchor";
 import { EventFill, EventOut, EventQueue } from "@bonfida/aaob";
 import { consumeEventsCrank, decryptOrdersCrank, settleAndCloseOpenOrdersCrank } from "./sdk/cranks";
+import { doesNotMatch } from "assert";
 // import { fetchAuctionObj } from "./sdk/auction";
 
 describe("Testing out the cranks for processing the auction phases", () => {
@@ -31,7 +32,10 @@ describe("Testing out the cranks for processing the auction phases", () => {
     const tickSizeNum = 0.001; // $0.001 or 0.1c tick size
     const tickSize = toFp32(tickSizeNum);
     const dustThreshold = 10; // The smallest fraction of tokens allowed to be left in the locked token balance
-    const eventQueueBytes = 1000000;
+    // const eventQueueBytes = 1000000;
+    // const eventQueueBytes = 5_000;
+    const numEvents = 10_000;
+    const eventQueueBytes = (33 + 42 + 50 * 98);
     
     const minSalePrice = 0.2; // $0.20 / 20c
     const numTokensForSale: BN = new BN(100_000_000_000_000); // 100 million tokens, assuming 6 decimal places
@@ -46,11 +50,12 @@ describe("Testing out the cranks for processing the auction phases", () => {
     
     let users: Array<User> = [];
     // const numUsers = 1250; // Needs to be 1,250 to make sure enough orders are sent through that some will be removed from the order book
-    const numUsers = 50;
+    const numUsers = 10_250;
+    // const numUsers = 50;
     const orderPhaseLength = (numUsers / 2);
     const decryptionPhaseLength = (numUsers / 6);
     const groupedNum = 50;
-    const maxOrdersInOrderbook = 1000; // Should be a higher number once we have an serialized iterator
+    const maxOrdersInOrderbook = 10_000;
     const bidsBytes = (104 + (80+32) * maxOrdersInOrderbook);
     const asksBytes = bidsBytes;
     let maxOrders = new BN(2);
@@ -78,6 +83,9 @@ describe("Testing out the cranks for processing the auction phases", () => {
     });
 
     it("create the IDO token seller and place the order", async() => {
+        // Wait for the auction to start
+        await sleep(0.5, false);
+
         let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId);
         let daoUser = await initUser(program, provider, wallet, auctionObj, new genTypes.Side.Ask(), numTokensForSale, new anchor.BN(0), maxOrders);
         // All of these instructions would pass through a DAO vote and be executed via CPI
@@ -92,7 +100,6 @@ describe("Testing out the cranks for processing the auction phases", () => {
         let txId = await provider.send(tx, [daoUser.userKeypair], {skipPreflight: true});
 
         let thisOpenOrders = await genAccs.OpenOrders.fetch(provider.connection, daoUser.openOrders);
-        console.log(JSON.stringify(thisOpenOrders, null, 2));
         assert.isTrue(thisOpenOrders.numOrders == 1, "check the order has been placed");
         assert.isTrue(thisOpenOrders.baseTokenLocked.eq(numTokensForSale), "all the tokens are locked up");
     });
@@ -111,6 +118,7 @@ describe("Testing out the cranks for processing the auction phases", () => {
             }
             users.push(...await Promise.all(tempUsers));
             console.log(groupedNum, "users created in", (Date.now() - startTime)/1000, "seconds");
+            console.log(users.length, "users in total so far");
         }
 
         console.log("Create open orders accounts");
@@ -184,7 +192,7 @@ describe("Testing out the cranks for processing the auction phases", () => {
                 break
             }
         }
-    });
+    }).timeout(10_000_000);
 
     it("decrypt a bunch of open orders", async() => {
         let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId, auctionNaclKeypair);
@@ -205,7 +213,7 @@ describe("Testing out the cranks for processing the auction phases", () => {
             assert.isTrue(thisOpenOrders.encryptedOrders.length == 0, "checking all the orders have been decrypted");
             assert.isTrue(thisOpenOrders.numOrders > 0, "checking that the orders have actually hit the book");
         }
-    });
+    }).timeout(10_000_000);
 
     it("Crank that will find the clearing price for the auction", async() => {
         let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId);
@@ -214,27 +222,33 @@ describe("Testing out the cranks for processing the auction phases", () => {
             await sleep(remainingTimeToClearing + 1);
         }
 
-        await calcClearingPriceCrank(provider, wallet, auctionObj, 10);
+        await calcClearingPriceCrank(provider, wallet, auctionObj, 200);
 
         let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
-        console.log(JSON.stringify(thisAuction, null, 2));
         assert.isTrue(thisAuction.hasFoundClearingPrice, "checking the clearing price has been found");
-        assert.isTrue(thisAuction.clearingPrice.toNumber() / (2 ** 32) >= minSalePrice, "check the clearing price is valid, assuming valid orders were placed");
+        assert.isTrue(thisAuction.clearingPrice >= toFpLimitPrice(minSalePrice, tickSizeNum), "check the clearing price is valid, assuming valid orders were placed");
         assert.isTrue(thisAuction.totalQuantityMatched.toNumber() > 0, "check the quantity matched is valid, assuming valid orders were placed");
-    });
+    }).timeout(10_000_000);
 
     it("Match orders at the clearing price and total quantity matched, then remove them from order book", async() => {
         let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId);
         let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
         assert.isTrue(thisAuction.hasFoundClearingPrice, "checking the clearing price has been found");
 
-        await matchOrdersCrank(provider, wallet, auctionObj, 20);
+        while (true) {
+            let allOrdersMatched = await matchOrdersCrank(provider, wallet, auctionObj, 20);
+            if (allOrdersMatched) {
+                break
+            } else {
+                await consumeEventsCrank(provider, auctionObj);
+            }
+        }
 
         thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
         assert.isTrue(thisAuction.remainingAskFills.toNumber() == 0, "check the entire matched quantity has been processed");
         assert.isTrue(thisAuction.remainingBidFills.toNumber() == 0, "check the entire matched quantity has been processed");
         // TODO could also add a check that the order book is empty but we haven't spent any time messing around with typescript AOB slab stuff yet.
-    });
+    }).timeout(10_000_000);
 
     it("Consume events", async() => {
         let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId);
@@ -244,7 +258,7 @@ describe("Testing out the cranks for processing the auction phases", () => {
         let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
         let thisEventQueue = await EventQueue.load(provider.connection, thisAuction.eventQueue, 32);
         assert.isTrue(thisEventQueue.header.count.toNumber() == 0, "Check that all the events have been consumed")
-    });
+    }).timeout(10_000_000);
 
     it("Settle and close the open orders accounts", async() => {
         let auctionObj = await fetchAuctionObj(program, provider, wallet.publicKey, auctionId); 
@@ -272,6 +286,6 @@ describe("Testing out the cranks for processing the auction phases", () => {
             }
         }
 
-    });
+    }).timeout(10_000_000);
 
 });

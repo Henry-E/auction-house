@@ -25,7 +25,15 @@ export async function calcClearingPriceCrank(provider: anchor.Provider, wallet: 
             ));
             await provider.send(tx, [], {skipPreflight: true});
             numErrors = 0;
+            // debug
+            let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
+            // console.log(JSON.stringify(thisAuction, null, 2));
+            //
         } catch (e) {
+            // debug
+            let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
+            // console.log(JSON.stringify(thisAuction, null, 2));
+            //
             // "Calculating clearing price phase is not active"
             if (e.toString().includes("6009")) {
                return true 
@@ -46,6 +54,7 @@ export async function calcClearingPriceCrank(provider: anchor.Provider, wallet: 
 // Returns false if too many errors occured.
 export async function matchOrdersCrank(provider: anchor.Provider, wallet: anchor.Wallet, auctionObj: Auction, limit: number = 1): Promise<boolean> {
     let numErrors = 0;
+    let numOrdersMatched = 0;
     while (true) {
         try {
             let tx = new anchor.web3.Transaction;
@@ -55,18 +64,23 @@ export async function matchOrdersCrank(provider: anchor.Provider, wallet: anchor
             ));
             await provider.send(tx, [], {skipPreflight: true});
             numErrors = 0;
+            numOrdersMatched += limit;
         } catch (e) {
-            // "Calculating clearing price phase is not active"
             if (e.toString().includes("6012")) {
-               return true 
-            } else {
-                console.log("Hit a failed transaction but continuing:", e);
-                numErrors++
-            }
-            // 3 sequential transaction failures and we exit the loop
-            if (numErrors > 2) {
+                console.log(numOrdersMatched, "orders matched, all orders matched");
+                // "match orders phase is not active"
+                return true 
+            } else if (e.toString().includes("6014")) {
+                console.log(numOrdersMatched, "orders matched, event queue full");
+                // "AOB Event queue is full"
+                return false
+            } else if (numErrors > 2) {
+                console.log(numOrdersMatched, "orders matched, other error");
+                // 3 sequential transaction failures and we exit the loop
                 return false
             }
+            console.log("Hit a failed transaction but continuing:", e);
+            numErrors++
         }
     }
 }
@@ -86,6 +100,8 @@ export async function decryptOrdersCrank(program: anchor.Program<AuctionHouse>, 
             console.log("Decryption phase has ended");
             try {
                 await Promise.all(tempDecryptInstrs);
+                // Consume events directly after sending the decrypt orders
+                await consumeEventsCrank(provider, auctionObj, 10);
             } catch (e) {
                 console.log(e)
                 anyErrors = true
@@ -136,10 +152,11 @@ export async function decryptOrdersCrank(program: anchor.Program<AuctionHouse>, 
 export async function consumeEventsCrank(provider: anchor.Provider, auctionObj: Auction, numEventsToConsume: number = 10 ): Promise<boolean> {
     let thisAuction = await genAccs.Auction.fetch(provider.connection, auctionObj.auction);
 
+    let numEventsConsumed = 0
     while (true) {
         let thisEventQueue = await EventQueue.load(provider.connection, thisAuction.eventQueue, 32);
         if (thisEventQueue.header.count.toNumber() == 0) {
-            console.log("no events on the event queue to consume");
+            console.log(numEventsConsumed, "events consumed");
             return true 
         }
         numEventsToConsume = Math.min(numEventsToConsume, thisEventQueue.header.count.toNumber());
@@ -165,7 +182,7 @@ export async function consumeEventsCrank(provider: anchor.Provider, auctionObj: 
         }
         let tx = new anchor.web3.Transaction;
         let thisInstr = genInstr.consumeEvents(
-            {limit: new BN(10), allowNoOp: false},
+            {limit: new BN(numEventsToConsume), allowNoOp: false},
             {...auctionObj}
         );
         let remainingAccounts: anchor.web3.AccountMeta[] = [];
@@ -177,7 +194,9 @@ export async function consumeEventsCrank(provider: anchor.Provider, auctionObj: 
         thisInstr.keys = thisInstr.keys.concat(remainingAccounts);
         tx.add(thisInstr);
         try {
+            // console.log("consuming events");
             await provider.send(tx, [], {skipPreflight: true});
+            numEventsConsumed += numEventsToConsume;
         } catch (e) {
             console.log(e);
             return false

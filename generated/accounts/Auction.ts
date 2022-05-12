@@ -24,6 +24,10 @@ export interface AuctionFields {
   baseVault: PublicKey
   minBaseOrderSize: BN
   tickSize: BN
+  askSearchStackDepth: number
+  bidSearchStackDepth: number
+  askSearchStackValues: Array<number>
+  bidSearchStackValues: Array<number>
   currentBidKey: BN
   currentAskKey: BN
   currentBidQuantityFilled: BN
@@ -58,6 +62,10 @@ export interface AuctionJSON {
   baseVault: string
   minBaseOrderSize: string
   tickSize: string
+  askSearchStackDepth: number
+  bidSearchStackDepth: number
+  askSearchStackValues: Array<number>
+  bidSearchStackValues: Array<number>
   currentBidKey: string
   currentAskKey: string
   currentBidQuantityFilled: string
@@ -92,6 +100,10 @@ export class Auction {
   readonly baseVault: PublicKey
   readonly minBaseOrderSize: BN
   readonly tickSize: BN
+  readonly askSearchStackDepth: number
+  readonly bidSearchStackDepth: number
+  readonly askSearchStackValues: Array<number>
+  readonly bidSearchStackValues: Array<number>
   readonly currentBidKey: BN
   readonly currentAskKey: BN
   readonly currentBidQuantityFilled: BN
@@ -129,6 +141,10 @@ export class Auction {
     borsh.publicKey("baseVault"),
     borsh.u64("minBaseOrderSize"),
     borsh.u64("tickSize"),
+    borsh.u8("askSearchStackDepth"),
+    borsh.u8("bidSearchStackDepth"),
+    borsh.array(borsh.u32(), 32, "askSearchStackValues"),
+    borsh.array(borsh.u32(), 32, "bidSearchStackValues"),
     borsh.u128("currentBidKey"),
     borsh.u128("currentAskKey"),
     borsh.u64("currentBidQuantityFilled"),
@@ -163,6 +179,10 @@ export class Auction {
     this.baseVault = fields.baseVault
     this.minBaseOrderSize = fields.minBaseOrderSize
     this.tickSize = fields.tickSize
+    this.askSearchStackDepth = fields.askSearchStackDepth
+    this.bidSearchStackDepth = fields.bidSearchStackDepth
+    this.askSearchStackValues = fields.askSearchStackValues
+    this.bidSearchStackValues = fields.bidSearchStackValues
     this.currentBidKey = fields.currentBidKey
     this.currentAskKey = fields.currentAskKey
     this.currentBidQuantityFilled = fields.currentBidQuantityFilled
@@ -238,6 +258,10 @@ export class Auction {
       baseVault: dec.baseVault,
       minBaseOrderSize: dec.minBaseOrderSize,
       tickSize: dec.tickSize,
+      askSearchStackDepth: dec.askSearchStackDepth,
+      bidSearchStackDepth: dec.bidSearchStackDepth,
+      askSearchStackValues: dec.askSearchStackValues,
+      bidSearchStackValues: dec.bidSearchStackValues,
       currentBidKey: dec.currentBidKey,
       currentAskKey: dec.currentAskKey,
       currentBidQuantityFilled: dec.currentBidQuantityFilled,
@@ -274,6 +298,10 @@ export class Auction {
       baseVault: this.baseVault.toString(),
       minBaseOrderSize: this.minBaseOrderSize.toString(),
       tickSize: this.tickSize.toString(),
+      askSearchStackDepth: this.askSearchStackDepth,
+      bidSearchStackDepth: this.bidSearchStackDepth,
+      askSearchStackValues: this.askSearchStackValues,
+      bidSearchStackValues: this.bidSearchStackValues,
       currentBidKey: this.currentBidKey.toString(),
       currentAskKey: this.currentAskKey.toString(),
       currentBidQuantityFilled: this.currentBidQuantityFilled.toString(),
@@ -310,6 +338,10 @@ export class Auction {
       baseVault: new PublicKey(obj.baseVault),
       minBaseOrderSize: new BN(obj.minBaseOrderSize),
       tickSize: new BN(obj.tickSize),
+      askSearchStackDepth: obj.askSearchStackDepth,
+      bidSearchStackDepth: obj.bidSearchStackDepth,
+      askSearchStackValues: obj.askSearchStackValues,
+      bidSearchStackValues: obj.bidSearchStackValues,
       currentBidKey: new BN(obj.currentBidKey),
       currentAskKey: new BN(obj.currentAskKey),
       currentBidQuantityFilled: new BN(obj.currentBidQuantityFilled),

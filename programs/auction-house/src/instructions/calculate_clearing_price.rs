@@ -60,27 +60,25 @@ pub fn calculate_clearing_price(ctx: Context<CalculateClearingPrice>, limit: u16
     )?;
 
     let bid_slab = order_book.get_tree(AobSide::Bid);
-    let mut bid_iter;
-    if auction.bid_search_stack_depth > 0 {
-        bid_iter = bid_slab.clone().resume_iter(
+    let mut bid_iter = if auction.bid_search_stack_depth > 0 {
+        bid_slab.clone().resume_iter(
             false,
             &auction.bid_search_stack_values[0..auction.bid_search_stack_depth as usize].to_vec(),
         )
     } else {
-        bid_iter = bid_slab.clone().into_iter(false);
-    }
+        bid_slab.clone().into_iter(false)
+    };
     let mut current_bid: LeafNode;
 
     let ask_slab = order_book.get_tree(AobSide::Ask);
-    let mut ask_iter;
-    if auction.ask_search_stack_depth > 0 {
-        ask_iter = ask_slab.clone().resume_iter(
+    let mut ask_iter = if auction.ask_search_stack_depth > 0 {
+        ask_slab.clone().resume_iter(
             true,
             &auction.ask_search_stack_values[0..auction.ask_search_stack_depth as usize].to_vec(),
         )
     } else {
-        ask_iter = ask_slab.clone().into_iter(true);
-    }
+        ask_slab.clone().into_iter(true)
+    };
     let mut current_ask: LeafNode;
 
     if auction.current_ask_key == 0 && auction.current_bid_key == 0 {
@@ -116,7 +114,14 @@ pub fn calculate_clearing_price(ctx: Context<CalculateClearingPrice>, limit: u16
             .ok_or_else(|| error!(CustomErrors::NodeKeyNotFound))?;
     }
 
+    // We need to store the stack prior to the loop finishing
+    // because we iterate to the store the next key before ending the loop
+    let mut ask_stack: Vec<u32> = Vec::new();
+    let mut bid_stack: Vec<u32> = Vec::new();
+
     for _ in 0..limit {
+        ask_stack = ask_iter.search_stack.clone();
+        bid_stack = bid_iter.search_stack.clone();
         let bid_quantity_remaining = current_bid
             .base_quantity
             .checked_sub(auction.current_bid_quantity_filled)
@@ -185,9 +190,6 @@ pub fn calculate_clearing_price(ctx: Context<CalculateClearingPrice>, limit: u16
             }
         }
     }
-
-    let ask_stack = ask_iter.search_stack;
-    let bid_stack = bid_iter.search_stack;
 
     if ask_stack.len() > 32 || bid_stack.len() > 32 {
         msg!(

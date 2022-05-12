@@ -40,6 +40,8 @@ export type CustomError =
   | OpenOrdersHasLockedTokens
   | OrderBookNotEmpty
   | EventQueueNotEmpty
+  | NumericalOverflow
+  | SlabIteratorOverflow
 
 export class NotImplemented extends Error {
   readonly code = 6000
@@ -475,6 +477,29 @@ export class EventQueueNotEmpty extends Error {
   }
 }
 
+export class NumericalOverflow extends Error {
+  readonly code = 6041
+  readonly name = "NumericalOverflow"
+  readonly msg =
+    "Some issue with the FP32 multiplication / division messed the maths up"
+
+  constructor() {
+    super(
+      "6041: Some issue with the FP32 multiplication / division messed the maths up"
+    )
+  }
+}
+
+export class SlabIteratorOverflow extends Error {
+  readonly code = 6042
+  readonly name = "SlabIteratorOverflow"
+  readonly msg = "Slab iterator stack overflow"
+
+  constructor() {
+    super("6042: Slab iterator stack overflow")
+  }
+}
+
 export function fromCode(code: number): CustomError | null {
   switch (code) {
     case 6000:
@@ -559,6 +584,10 @@ export function fromCode(code: number): CustomError | null {
       return new OrderBookNotEmpty()
     case 6040:
       return new EventQueueNotEmpty()
+    case 6041:
+      return new NumericalOverflow()
+    case 6042:
+      return new SlabIteratorOverflow()
   }
 
   return null
