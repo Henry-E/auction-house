@@ -81,8 +81,8 @@ const AuctionsList = () => {
     formState: { errors },
   } = useForm({
     defaultValues: {
-      baseMint: "U6isRkqrASG1qK8xyQyqmbhnJ6wnrqmkz2RZhhxmb2Z",
-      quoteMint: "B9DKymDjiAChBZXmo4YSrMKD3LtBJH39uzCPS5RUm6QN",
+      baseMint: "GoES7CDvee2AiNWNBoGuuQnEwD8b1qyMXL77cxSDf3Vd",
+      quoteMint: "ATDQACtXEBK6C5p8qc7bXBswi12FSBgbzTuLhR1fpeUC",
       areAsksEncrypted: false,
       areBidsEncrypted: true,
       minBaseOrderSize: 1000,
