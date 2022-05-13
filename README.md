@@ -1,5 +1,15 @@
 # Auction house program
 
+## Installation
+
+Make sure to place the auction-house repository checkout in the same folder as a
+checkout of the
+[agnostic-orderbook](https://github.com/Henry-E/agnostic-orderbook).
+
+Install
+[anchor](https://project-serum.github.io/anchor/getting-started/installation.html)
+and run `yarn install` from the root of the auction house repo.
+
 ## Devnet Test Tokens:
 
 All devnet mints can be controlled with the auction development keypair.
