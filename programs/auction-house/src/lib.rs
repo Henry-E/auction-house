@@ -10,13 +10,13 @@ mod instructions;
 pub mod program_accounts;
 pub mod types; // `accounts` is already in use in this file, so we call the folder `program_accounts`
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("FpuKSiZ5j5Qu68X2QB2Ji2BcYpPptSX2Pmv7EFAcZiF2");
 
 #[program]
 pub mod auction_house {
     use super::*;
 
-    #[access_control(InitAuction::validate_args(&args))]
+    #[access_control(ctx.accounts.validate_args(&args))]
     pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
         instructions::init_auction(ctx, &args)
     }

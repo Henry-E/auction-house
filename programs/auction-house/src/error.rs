@@ -92,4 +92,6 @@ pub enum CustomErrors {
     NumericalOverflow,
     #[msg("Slab iterator stack overflow")]
     SlabIteratorOverflow,
+    #[msg("Base & quote mint need to have the same decimals")]
+    IncompatibleMintDecimals,
 }
