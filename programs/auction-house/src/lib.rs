@@ -16,7 +16,7 @@ declare_id!("FpuKSiZ5j5Qu68X2QB2Ji2BcYpPptSX2Pmv7EFAcZiF2");
 pub mod auction_house {
     use super::*;
 
-    #[access_control(InitAuction::validate_args(&args))]
+    #[access_control(ctx.accounts.validate_args(&args))]
     pub fn init_auction(ctx: Context<InitAuction>, args: InitAuctionArgs) -> Result<()> {
         instructions::init_auction(ctx, &args)
     }

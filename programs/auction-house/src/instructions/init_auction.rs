@@ -66,7 +66,7 @@ pub struct InitAuction<'info> {
 }
 
 impl InitAuction<'_> {
-    pub fn validate_args(args: &InitAuctionArgs) -> Result<()> {
+    pub fn validate_args(&self, args: &InitAuctionArgs) -> Result<()> {
         let clock = Clock::get()?;
         // Orders phase ends before it starts
         if args.end_order_phase <= args.start_order_phase {
@@ -85,6 +85,10 @@ impl InitAuction<'_> {
         }
         if args.tick_size == 0 {
             return Err(error!(CustomErrors::InvalidTickSize));
+        }
+
+        if self.quote_mint.decimals != self.base_mint.decimals {
+            return Err(error!(CustomErrors::IncompatibleMintDecimals));
         }
 
         Ok(())
