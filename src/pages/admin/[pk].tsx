@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Auction, OpenOrders } from "../../../generated/accounts";
 import Modal from "../../components/Modal";
-import useLocalStorageState from "../../hooks/useLocalStorageState";
+import useLocalStorageState, {
+  handleParseKeyPairObj,
+} from "../../hooks/useLocalStorageState";
 import useWallet from "../../hooks/useWallet";
 import * as nacl from "tweetnacl";
 
@@ -45,7 +47,8 @@ const AdminView = () => {
 
   const [localOrderKey] = useLocalStorageState(
     "localOrderKey",
-    nacl.box.keyPair()
+    nacl.box.keyPair(),
+    handleParseKeyPairObj
   );
 
   // local storage messes up the key encoding

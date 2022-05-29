@@ -16,7 +16,9 @@ import { initAuction } from "../../generated/instructions";
 import { Auction as GenAuction } from "../../generated/accounts";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import Modal from "../components/Modal";
-import useLocalStorageState from "../hooks/useLocalStorageState";
+import useLocalStorageState, {
+  handleParseKeyPairArray,
+} from "../hooks/useLocalStorageState";
 
 const AuctionItem = ({
   pk,
@@ -69,7 +71,8 @@ const AuctionsList = () => {
 
   const [localAuctionKeys, setLocalAuctionKeys] = useLocalStorageState(
     "localAuctionKeys",
-    [] as nacl.BoxKeyPair[]
+    [] as nacl.BoxKeyPair[],
+    handleParseKeyPairArray
   );
 
   const [openCreateAuctionModal, setOpenCreateAuctionModal] = useState(false);
@@ -250,6 +253,7 @@ const AuctionsList = () => {
         <tbody>
           {auctions.map((a) => (
             <AuctionItem
+              key={a.publicKey}
               pk={a.publicKey}
               auction={new GenAuction(a.account)}
               localAuctionKeys={localAuctionKeys}

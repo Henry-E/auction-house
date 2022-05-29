@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Auction, OpenOrders } from "../../../generated/accounts";
 import Modal from "../../components/Modal";
-import useLocalStorageState from "../../hooks/useLocalStorageState";
+import useLocalStorageState, {
+  handleParseKeyPairObj,
+} from "../../hooks/useLocalStorageState";
 import useWallet from "../../hooks/useWallet";
 import * as nacl from "tweetnacl";
 import Slider from "rc-slider";
@@ -52,7 +54,8 @@ const AuctionView = () => {
 
   const [localOrderKey] = useLocalStorageState(
     "localOrderKey",
-    nacl.box.keyPair()
+    nacl.box.keyPair(),
+    handleParseKeyPairObj
   );
 
   // local storage messes up the key encoding
@@ -354,15 +357,15 @@ const AuctionView = () => {
         <div className="border p-4">
           <h1>Orderbook</h1>
           <p>Bids: </p>
-          {selected?.bids.getL2DepthJS(10, false).map((p) => (
-            <p>
+          {selected?.bids.getL2DepthJS(10, false).map((p, idx) => (
+            <p key={idx}>
               {p.size / 10 ** baseDecimals!} @ {p.price / 2 ** 32}
             </p>
           ))}
 
           <p>Asks:</p>
-          {selected?.asks.getL2DepthJS(10, true).map((p) => (
-            <p>
+          {selected?.asks.getL2DepthJS(10, true).map((p, idx) => (
+            <p key={idx}>
               {p.size / 10 ** baseDecimals!} @ {p.price / 2 ** 32}
             </p>
           ))}
