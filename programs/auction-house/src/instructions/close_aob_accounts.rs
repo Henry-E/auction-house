@@ -15,7 +15,7 @@ pub struct CloseAobAccounts<'info> {
     pub auctioneer: SystemAccount<'info>,
     // Program Accounts
     #[account(
-        seeds = [AUCTION.as_bytes(), &auction.auction_id, auction.authority.as_ref()],
+        seeds = [AUCTION.as_bytes(), &auction.auction_id, auctioneer.key().as_ref()],
         bump = auction.bump,
         mut
     )]
